@@ -1,0 +1,30 @@
+# Environments
+.venv/
+envs/
+venv/
+env/
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Model Caches
+.cache/
+modelscope/
+huggingface/
+
+# Audio Assets
+*.wav
+*.m4a
+*.mp3
+*.flac
+
+# Local / System
+.vscode/
+.idea/
+.DS_Store
+.agents/
+.gemini/
+.antigravity/

@@ -1,0 +1,5 @@
+Metadata-Version: 2.4
+Name: editdistance
+Version: 0.8.1
+Summary: Dummy editdistance package to bypass build errors
+Author-email: Antigravity <test@example.com>
