@@ -30,6 +30,11 @@ class ModelConfig:
 
     name: str
     display_name: str
+    packages: list[str]
+    script: str
+    huggingface_id: str
+    mac_packages: list[str] = None
+    mac_script: str = None
     extra_pip_args: list[str] = field(default_factory=list)
     mac_extra_pip_args: list[str] = field(default_factory=list)
 

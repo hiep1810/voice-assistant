@@ -78,15 +78,16 @@ def print_benchmark_table(results: list[dict]) -> None:
         title="🎤 STT Benchmark Results",
         show_header=True,
         header_style="bold magenta",
+        expand=True,
     )
 
-    table.add_column("Model", style="cyan", min_width=30)
-    table.add_column("Audio(s)", justify="right")
-    table.add_column("Time(s)", justify="right")
-    table.add_column("RTF", justify="right")
-    table.add_column("Real-time?", justify="center")
-    table.add_column("Device", justify="center")
-    table.add_column("Text (preview)", max_width=40, no_wrap=True)
+    table.add_column("Model", style="cyan", ratio=2)
+    table.add_column("Audio", justify="right", min_width=6)
+    table.add_column("Time", justify="right", min_width=6)
+    table.add_column("RTF", justify="right", min_width=6)
+    table.add_column("RT?", justify="center", min_width=4)
+    table.add_column("Dev", justify="center", min_width=6)
+    table.add_column("Text Preview", ratio=1, min_width=10, overflow="fold")
 
     for r in results:
         if r.get("status") == "skipped":
@@ -103,7 +104,10 @@ def print_benchmark_table(results: list[dict]) -> None:
             # Successful result — show all metrics
             rtf = r.get("rtf", 0)
             is_rt = "✅" if r.get("is_realtime", False) else "❌"
-            text_preview = r.get("text", "")[:40]
+            # If the text is empty or missing, show [empty]
+            text_preview = r.get("text", "").strip() or "[empty]"
+            if len(text_preview) > 60:
+                text_preview = text_preview[:57] + "..."
 
             table.add_row(
                 r["model"],
