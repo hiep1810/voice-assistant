@@ -56,6 +56,8 @@ graph TD
    - > **Junior tip:** `uv` is a blazingly fast Python package manager. It's often 10x–100x faster than standard `pip` because it uses a global cache and smart linking.
 
 ### Installation
+For a **detailed step-by-step tutorial**, please see our [Installation Guide](docs/installation-guide.md).
+
 1. Clone the repository:
    ```bash
    git clone <repo-url>
