@@ -103,7 +103,7 @@ MODELS: dict[str, ModelConfig] = {
     "gipformer": ModelConfig(
         name="gipformer",
         display_name="Gipformer 65M RNNT",
-        packages=["k2", "kaldifeat", "onnxruntime", "torch", "soundfile", "librosa"],
+        packages=["sherpa-onnx", "onnxruntime", "huggingface_hub", "soundfile", "librosa"],
         script="run_gipformer.py",
         huggingface_id="g-group-ai-lab/gipformer-65M-rnnt",
     ),

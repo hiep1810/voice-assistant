@@ -1,21 +1,17 @@
-"""
-Batch Benchmark — run models on multiple audio files and compute aggregate metrics.
-
-Usage:
-    python -m stt_test batch-benchmark ./data/vivos/test --models parakeet,gipformer
-"""
+from __future__ import annotations
 
 import argparse
 import json
 import time
 from pathlib import Path
+from typing import List, Optional, Union
 
 import typer
 from rich.console import Console
 from rich.table import Table
 
 from stt_test.env_manager import is_env_ready, run_in_env
-from stt_test.registry import get_model
+from stt_test.registry import MODELS, get_model
 
 app = typer.Typer(name="batch-benchmark")
 console = Console()
@@ -23,9 +19,12 @@ console = Console()
 
 def run_batch_benchmark(
     data_dir: str,
-    model_names: list[str] | None = None,
-    limit: int | None = None,
+    model_names: List[str] | None = None,
+    limit: Optional[int] = None,
 ) -> dict:
+# ...
+# Wait, I'll just do the import change and the one function change.
+
     """Run benchmark on multiple audio files in a directory.
 
     Args:
@@ -64,7 +63,8 @@ def run_batch_benchmark(
 
     # Run benchmark for each model
     results = {}
-    for model_name in (model_names or []):
+    targets = model_names if model_names else list(MODELS.keys())
+    for model_name in targets:
         console.print(f"\n[cyan]Running {model_name}...[/]")
 
         if not is_env_ready(model_name):
@@ -96,7 +96,7 @@ def run_batch_benchmark(
     return results
 
 
-def compute_metrics(results: list[dict], model_name: str) -> dict:
+def compute_metrics(results: List[dict], model_name: str) -> dict:
     """Compute WER, CER, and average RTF from results."""
     # Simple WER/CER calculation (without normalization)
     total_wer = 0
@@ -160,7 +160,7 @@ def compute_wer(pred: str, truth: str) -> float:
     return edits / len(truth_words)
 
 
-def levenshtein_distance(s1: list | str, s2: list | str) -> int:
+def levenshtein_distance(s1: Union[List, str], s2: Union[List, str]) -> int:
     """Compute Levenshtein edit distance."""
     if len(s1) < len(s2):
         return levenshtein_distance(s2, s1)

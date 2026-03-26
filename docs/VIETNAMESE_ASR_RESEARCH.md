@@ -9,7 +9,7 @@
 
 This report documents the research and benchmarking of Vietnamese Automatic Speech Recognition (ASR) models. We evaluated 6 models on the VIVOS test dataset, measuring Word Error Rate (WER), Character Error Rate (CER), and Real-Time Factor (RTF).
 
-**Key Finding:** Gipformer 65M RNNT achieved the best overall performance with **15.49% WER**, **4.08% CER**, and **0.0067 RTF** - outperforming all other models in both accuracy and speed.
+**Key Finding:** Parakeet 0.6B achieved the best accuracy on NVIDIA GPUs (**6.33% WER**), while Gipformer 65M RNNT achieved the best accuracy on Mac Mini M4 (**15.49% WER**) and remains the efficiency leader across all platforms.
 
 ---
 
@@ -17,14 +17,14 @@ This report documents the research and benchmarking of Vietnamese Automatic Spee
 
 ### 1.1 Model Registry
 
-| Model | Params | Framework | Device | HuggingFace ID |
-|-------|--------|-----------|--------|----------------|
-| Parakeet 0.6B | 0.6B | NeMo/MLX | MLX (Apple Silicon) | `nvidia/parakeet-ctc-0.6b-vi` |
-| Moonshine Tiny | ~20M | Transformers | MPS | `UsefulSensors/moonshine-tiny-vi` |
-| Qwen3-ASR | 0.6B | Transformers | MPS | `Qwen/Qwen3-ASR-0.6B` |
-| UniASR Vietnamese | - | FunASR | CPU | `iic/speech_UniASR_asr_2pass-vi-16k-common-vocab1001-pytorch-online` |
-| Whisper Large-v3-Turbo | ~800M | Transformers | MLX | `openai/whisper-large-v3-turbo` |
-| **Gipformer 65M RNNT** | **65M** | **sherpa-onnx** | **CPU** | `g-group-ai-lab/gipformer-65M-rnnt` |
+| Model | Params | Framework | Hardware Support | HuggingFace ID |
+|-------|--------|-----------|------------------|----------------|
+| Parakeet 0.6B | 0.6B | NeMo/MLX | CUDA (NVIDIA) / MLX (Apple) | `nvidia/parakeet-ctc-0.6b-vi` |
+| Moonshine Tiny | ~20M | Transformers | CUDA / MPS | `UsefulSensors/moonshine-tiny-vi` |
+| Qwen3-ASR | 0.6B | Transformers | CUDA / MPS | `Qwen/Qwen3-ASR-0.6B` |
+| UniASR Vietnamese | - | FunASR | CUDA / CPU | `iic/speech_UniASR_asr_2pass-vi-16k-common-vocab1001-pytorch-online` |
+| Whisper Large-v3-Turbo | ~800M | Transformers | CUDA / MLX / MPS | `openai/whisper-large-v3-turbo` |
+| **Gipformer 65M RNNT** | **65M** | **sherpa-onnx**| **CPU / CUDA (via CRT)** | `g-group-ai-lab/gipformer-65M-rnnt` |
 
 ### 1.2 Model Details
 
@@ -138,36 +138,41 @@ python stt_test/scripts/download_vivos.py --output-dir ./data/vivos --split test
 | Whisper Large-v3-Turbo | 5.08 | 0.91 | 0.179 | ✅ | MLX |
 | **Gipformer 65M RNNT** | **5.08** | **0.03** | **0.006** | ✅ | **CPU** |
 
-### 3.2 Batch Benchmark (VIVOS Test - 20 samples)
+### 3.2 Batch Benchmark (VIVOS Test - Cross-Platform Results)
 
-**Metrics:** WER (Word Error Rate), CER (Character Error Rate) - Lower is better
+#### A. High-Performance GPU (NVIDIA RTX 3080 Ti / Windows)
+*Benchmarked on 10 samples (VIVOS Test set)*
 
-| Model | Samples | WER | CER | Avg RTF |
-|-------|---------|-----|-----|---------|
-| **Gipformer 65M RNNT** | 20 | **15.49%** | **4.08%** | **0.0067** |
-| Qwen3-ASR 0.6B | 20 | 16.85% | 5.26% | 0.2040 |
-| Whisper Large-v3-Turbo | 20 | 23.16% | 14.35% | 0.2826 |
-| Parakeet 0.6B | 20 | 31.37% | 6.61% | 0.0325 |
-| UniASR Vietnamese | 20 | 32.49% | 12.02% | 0.9938 |
-| Moonshine Tiny | 20 | 47.66% | 36.42% | 0.0429 |
+| Model | Samples | WER | CER | Avg RTF | Device |
+|-------|---------|-----|-----|---------|--------|
+| **Parakeet 0.6B** | 10 | **6.33%** | **1.78%** | **0.0260** | CUDA |
+| Gipformer 65M RNNT | 10 | 12.78% | 3.10% | 0.0168 | CPU |
+| Qwen3-ASR 0.6B | 10 | 13.55% | 3.27% | 0.1930 | CUDA |
+| Whisper Large-v3-Turbo | 10 | 34.82% | 26.73% | 0.1281 | CUDA |
+
+#### B. Apple Silicon (Mac Mini M4 / macOS)
+*Benchmarked on 20 samples (VIVOS Test set)*
+
+| Model | Samples | WER | CER | Avg RTF | Device |
+|-------|---------|-----|-----|---------|--------|
+| **Gipformer 65M RNNT** | 20 | **15.49%** | **4.08%** | **0.0067** | CPU |
+| Qwen3-ASR 0.6B | 20 | 16.85% | 5.26% | 0.2040 | MPS |
+| Whisper Large-v3-Turbo | 20 | 23.16% | 14.35% | 0.2826 | MLX |
+| Parakeet 0.6B | 20 | 31.37% | 6.61% | 0.0325 | MLX |
+| UniASR Vietnamese | 20 | 32.49% | 12.02% | 0.9938 | CPU |
+| Moonshine Tiny | 20 | 47.66% | 36.42% | 0.0429 | MPS |
 
 ### 3.3 Performance Analysis
 
 #### Accuracy (WER - Word Error Rate)
-1. **Gipformer 65M**: 15.49% - Best word-level accuracy
-2. **Qwen3-ASR**: 16.85% - Close second, 1.4% higher WER
-3. **Whisper Turbo**: 23.16% - Good middle ground
-4. **Parakeet 0.6B**: 31.37% - Unexpected high WER despite low CER
-5. **UniASR**: 32.49% - Known tone errors affect word accuracy
-6. **Moonshine Tiny**: 47.66% - Smallest model, highest errors
+1. **NVIDIA GPUs (RTX 3080 Ti):** **Parakeet 0.6B** (6.33% WER) leads in accuracy.
+2. **Apple Silicon (M4):** **Gipformer 65M** (15.49% WER) leads in accuracy.
+3. **Common:** **Qwen3-ASR** performs consistently well across both platforms (~13-16% WER).
 
 #### Character Accuracy (CER)
-1. **Gipformer 65M**: 4.08% - Excellent character-level accuracy
-2. **Qwen3-ASR**: 5.26% - Very close second
-3. **Parakeet 0.6B**: 6.61% - Good CER but high WER (word segmentation)
-4. **UniASR**: 12.02% - Tone errors contribute to CER
-5. **Whisper Turbo**: 14.35% - Multilingual model trade-off
-6. **Moonshine Tiny**: 36.42% - Significant character errors
+1. **NVIDIA GPUs (RTX 3080 Ti):** **Parakeet 0.6B** (1.78% CER) - best character precision.
+2. **Mac Mini M4:** **Gipformer 65M** (4.08% CER).
+3. **Common:** **Qwen3-ASR** (~3.27-5.26% CER).
 
 #### Speed (RTF - Real Time Factor)
 Lower RTF = Faster processing. RTF < 1.0 means real-time capable.
@@ -303,11 +308,10 @@ python -m stt_test list
 
 | Use Case | Recommended Model |
 |----------|-------------------|
-| **Edge devices (no GPU)** | Gipformer 65M RNNT |
-| **Apple Silicon (M1/M2/M3)** | Parakeet 0.6B (MLX) |
-| **Highest accuracy (GPU available)** | Qwen3-ASR 0.6B |
+| **NVIDIA GPU (Windows)** | **Parakeet 0.6B** (Best Accuracy: 6.33% WER) |
+| **Apple Silicon (Mac Mini M4)** | **Gipformer 65M RNNT** (Best Accuracy/Speed: 15.49% WER) |
+| **Edge devices / CPU-only** | Gipformer 65M RNNT (Fastest Latency: 0.0067 RTF) |
 | **Multilingual support** | Whisper Large-v3-Turbo |
-| **Lowest latency** | Gipformer 65M RNNT |
 
 ### 6.3 Model Limitations
 

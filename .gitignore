@@ -28,3 +28,4 @@ huggingface/
 .agents/
 .gemini/
 .antigravity/
+data/
