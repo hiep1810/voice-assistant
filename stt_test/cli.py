@@ -142,5 +142,35 @@ def benchmark_cmd(
     print_benchmark_table(results)
 
 
+# ---------------------------------------------------------------------------
+# BATCH-BENCHMARK — run models on a directory of audio files
+# ---------------------------------------------------------------------------
+@app.command("batch-benchmark")
+def batch_benchmark_cmd(
+    data_dir: str = typer.Argument(help="Directory with .wav and .txt files"),
+    models: Optional[str] = typer.Option(  # noqa: UP007
+        None,
+        "--models",
+        help="Comma-separated model names to benchmark. Default: all.",
+    ),
+    limit: Optional[int] = typer.Option(  # noqa: UP007
+        None,
+        "--limit",
+        help="Limit number of samples to process",
+    ),
+) -> None:
+    """Run batch benchmark on a directory of audio files with ground truth.
+
+    Computes WER (Word Error Rate) and CER (Character Error Rate) across all samples.
+    Expects files named: 0000.wav, 0000.txt, 0001.wav, 0001.txt, etc.
+    """
+    from stt_test.batch_benchmark import run_batch_benchmark, print_batch_results
+
+    model_names = models.split(",") if models else None
+
+    results = run_batch_benchmark(data_dir, model_names, limit)
+    print_batch_results(results)
+
+
 if __name__ == "__main__":
     app()

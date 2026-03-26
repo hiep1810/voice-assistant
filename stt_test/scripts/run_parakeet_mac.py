@@ -8,7 +8,7 @@ import sys
 import time
 from pathlib import Path
 
-import parakeet_mlx
+from parakeet_mlx import from_pretrained
 import soundfile as sf
 
 
@@ -18,26 +18,23 @@ def get_audio_duration(audio_path: str) -> float:
 
 
 def main(audio_path: str) -> None:
-    # Use the optimized MLX-community model
-    model_id = "mlx-community/parakeet-tdt-0.6b-v3"
+    # Use the Vietnamese-specific MLX model
+    model_id = "khanhicetea/parakeet-ctc-0.6b-vi-mlx"
     audio_duration = get_audio_duration(audio_path)
 
     # Load Parakeet MLX
-    model = parakeet_mlx.load(model_id)
+    model = from_pretrained(model_id)
 
     # Warmup
     _ = model.transcribe(audio_path)
 
     # Time only the inference
     start = time.perf_counter()
-    transcriptions = model.transcribe(audio_path)
+    result_obj = model.transcribe(audio_path)
     inference_time = time.perf_counter() - start
 
-    # parakeet-mlx returns a list of results
-    if transcriptions:
-        text = transcriptions[0].text
-    else:
-        text = ""
+    # parakeet-mlx returns an AlignedResult object with text attribute
+    text = result_obj.text if result_obj else ""
 
     rtf = inference_time / audio_duration if audio_duration > 0 else float("inf")
 

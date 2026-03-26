@@ -18,7 +18,8 @@ def get_audio_duration(audio_path: str) -> float:
 
 
 def main(audio_path: str) -> None:
-    model_id = "openai/whisper-large-v3-turbo"
+    # Use MLX-community converted model for better compatibility
+    model_id = "mlx-community/whisper-large-v3-turbo"
     audio_duration = get_audio_duration(audio_path)
 
     # MLX Whisper is optimized for Apple Silicon

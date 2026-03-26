@@ -89,7 +89,7 @@ MODELS: dict[str, ModelConfig] = {
         display_name="UniASR Vietnamese (FunASR)",
         packages=["funasr", "torch", "torchaudio", "modelscope", "soundfile", "librosa", "omegaconf"],
         script="run_sensevoice.py",
-        huggingface_id="FunAudioLLM/SenseVoiceSmall",
+        huggingface_id="iic/speech_UniASR_asr_2pass-vi-16k-common-vocab1001-pytorch-online",
     ),
     "whisper-turbo": ModelConfig(
         name="whisper-turbo",
@@ -99,6 +99,13 @@ MODELS: dict[str, ModelConfig] = {
         huggingface_id="openai/whisper-large-v3-turbo",
         mac_packages=["mlx-whisper", "soundfile", "librosa"],
         mac_script="run_whisper_mac.py",
+    ),
+    "gipformer": ModelConfig(
+        name="gipformer",
+        display_name="Gipformer 65M RNNT",
+        packages=["k2", "kaldifeat", "onnxruntime", "torch", "soundfile", "librosa"],
+        script="run_gipformer.py",
+        huggingface_id="g-group-ai-lab/gipformer-65M-rnnt",
     ),
 }
 
