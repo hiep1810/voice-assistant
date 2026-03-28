@@ -1,6 +1,10 @@
-# 🎙️ stt-test: Vietnamese ASR Benchmarking Suite
+# 🎙️ voice-assistant: Vietnamese ASR & TTS Benchmarking Suite
 
-A high-performance CLI tool for benchmarking the accuracy and speed (RTF) of leading Vietnamese Automatic Speech Recognition (ASR) models on your own hardware.
+A high-performance CLI tool for benchmarking the accuracy and speed (RTF) of leading Vietnamese Automatic Speech Recognition (ASR) and Text-to-Speech (TTS) models on your own hardware.
+
+**Two benchmarking suites in one project:**
+- 🎤 **ASR (Speech-to-Text)** - Benchmark transcription models
+- 🔊 **TTS (Text-to-Speech)** - Benchmark voice synthesis models
 
 ---
 
@@ -94,6 +98,76 @@ python -m stt_test benchmark test.wav
 
 ---
 
+## 🔊 TTS Benchmarking (Text-to-Speech)
+
+Benchmark Vietnamese voice synthesis models with quality metrics.
+
+### Latest Benchmark Results
+
+See [TTS Benchmark Results](docs/tts-benchmark-results.md) for detailed results.
+
+**Real-Time Performance (Inference Only):**
+
+| Model | RTF | Real-time | Speed | Quality |
+|-------|-----|-----------|-------|---------|
+| **vietts** (MMS TTS) | **0.02** | YES | **49x** | Good |
+| **vietneu-tts** | **0.68** | YES | **1.5x** | Better |
+
+**Note:** Both models run in real-time on GPU! The previous benchmarks included model loading time.
+
+### Available Models
+
+| Model | Description | Speaker Support | Status |
+|-------|-------------|-----------------|--------|
+| **vietts** | Facebook MMS VITS | No | ✅ Ready |
+| **xtts-v2** | Coqui XTTS-v2 | Yes (voice cloning) | ⚠️ Fallback |
+| **gpt-sovits** | GPT-SoVITS | Yes (few-shot) | ⚠️ Fallback |
+| **vits-vi** | VITS Vietnamese (MMS) | No | ✅ Ready |
+| **vietneu-tts** | VieNeu-TTS | Yes (instant cloning) | ✅ Ready |
+
+**Notes:**
+- ⚠️ xtts-v2 and gpt-sovits use MMS TTS fallback (Vietnamese) - full models require additional setup
+- ✅ vietneu-tts requires Python 3.10+ (install via pyenv-win)
+
+### Commands
+
+#### List Available TTS Models
+```bash
+python -m tts_test list
+```
+
+#### Setup a TTS Model
+```bash
+python -m tts_test setup vietts
+# Or setup all: python -m tts_test setup --all
+```
+
+#### Synthesize Text (Single Model)
+```bash
+python -m tts_test synthesize vietts "Xin chào thế giới"
+```
+
+#### Benchmark All Models
+```bash
+python -m tts_test benchmark "Xin chào, đây là bài kiểm tra giọng nói tiếng Việt."
+```
+
+#### Batch Benchmark (Multiple Texts)
+```bash
+python -m tts_test batch-benchmark ./test_texts/
+```
+
+### TTS Metrics
+
+| Metric | Description | Good Value |
+|--------|-------------|------------|
+| **RTF** | Real Time Factor (speed) | < 1.0 |
+| **MOS** | Mean Opinion Score (predicted quality) | > 3.5 |
+| **PESQ** | Perceptual Speech Quality (requires reference) | > 3.0 |
+| **STOI** | Speech Intelligibility (requires reference) | > 0.8 |
+
+---
+
 ## 🧪 Annotated Decisions
 
 ### Why separate `run_<model>.py` scripts?
@@ -106,9 +180,12 @@ During development, we found `SenseVoiceSmall` had limited language support for 
 ---
 
 ## 📂 Project Structure
-- `stt_test/`: Main package containing the CLI, Registry, and Environment Manager.
+- `stt_test/`: Main package containing the ASR CLI, Registry, and Environment Manager.
 - `stt_test/scripts/`: Specialized Python scripts that run inside isolated environments.
+- `tts_test/`: Main package containing the TTS CLI, Registry, Environment Manager, and Audio Quality metrics.
+- `tts_test/scripts/`: TTS inference scripts for each model.
 - `envs/`: (Generated) Directory where the model-specific virtual environments are stored.
+  - `envs/tts/`: TTS-specific virtual environments.
 - `docs/`: Technical deep-dives and post-mortems.
 - `plans/`: Implementation roadmaps for future features.
 

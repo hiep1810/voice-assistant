@@ -21,6 +21,20 @@ huggingface/
 *.mp3
 *.flac
 
+# Benchmark Runs
+benchmark_runs/
+*.wav
+
+# Test Data (keep structure, ignore generated files)
+test_data/*.wav
+test_data/*.txt
+!test_data/.gitkeep
+
+# Temp Files
+*.tmp
+temp/
+tmp/
+
 # Local / System
 .vscode/
 .idea/
