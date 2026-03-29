@@ -31,6 +31,10 @@ def run(
         None, "--config", "-c",
         help="Path to configuration file",
     ),
+    server_url: Optional[str] = typer.Option(
+        None, "--server-url", "-s",
+        help="Remote llama.cpp server URL (e.g., http://localhost:8000)",
+    ),
 ) -> None:
     """
     Launch the voice assistant with TUI interface.
@@ -53,6 +57,7 @@ def run(
             enable_tts=not no_tts,
             enable_vad=not no_vad,
             config_path=config,
+            server_url=server_url,
         )
     except ImportError as e:
         console.print(f"[red]TUI not available: {e}[/]")
@@ -61,6 +66,7 @@ def run(
             model=model,
             enable_tts=not no_tts,
             config_path=config,
+            server_url=server_url,
         )
 
 

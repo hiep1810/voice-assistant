@@ -45,9 +45,11 @@ class VoiceAssistantTUI:
         model: Optional[str] = None,
         enable_tts: bool = True,
         enable_vad: bool = True,
+        server_url: Optional[str] = None,
     ):
         self.console = Console()
         self.pipeline = pipeline or VoicePipeline()
+        self.server_url = server_url
 
         # State
         self._transcription = ""
@@ -292,6 +294,7 @@ def run_tui(
     enable_tts: bool = True,
     enable_vad: bool = True,
     config_path: Optional[str] = None,
+    server_url: Optional[str] = None,
 ) -> None:
     """
     Run voice assistant with TUI interface.
@@ -302,11 +305,15 @@ def run_tui(
     console.print("[bold blue]Voice Assistant TUI[/]")
     console.print("")
 
+    if server_url:
+        console.print(f"[bold]Using remote server:[/] {server_url}")
+
     # Create pipeline
     config = PipelineConfig(
         enable_vad=enable_vad,
         enable_tts=enable_tts,
         llm_model=model or "qwen3-2b",
+        llm_server_url=server_url,
     )
 
     pipeline = VoicePipeline(config)
@@ -317,6 +324,7 @@ def run_tui(
         model=model,
         enable_tts=enable_tts,
         enable_vad=enable_vad,
+        server_url=server_url,
     )
 
     try:

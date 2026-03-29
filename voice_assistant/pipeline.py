@@ -47,6 +47,7 @@ class PipelineConfig:
 
     # LLM
     llm_model: str = "qwen3-2b"
+    llm_server_url: Optional[str] = None  # Remote llama.cpp server
 
     # TTS
     tts_model: str = "vietneu-tts"
@@ -147,9 +148,12 @@ class VoicePipeline:
 
     def _initialize_llm(self) -> None:
         """Initialize LLM."""
+        from voice_assistant.config import LLMConfig
+
         self._llm = LlamaCppLLM(
             LLMConfig(
                 model=self.config.llm_model,
+                server_url=self.config.llm_server_url,
             )
         )
         # Lazy load - call load_model() when needed
