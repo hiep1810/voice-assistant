@@ -2,7 +2,22 @@
 
 ## Quick Start
 
-### Option 1: Use Remote llama.cpp Server (Recommended for testing)
+### Option 1: Interactive Setup Wizard (Recommended for first-time users)
+
+Run the setup wizard to detect your hardware and get recommendations:
+
+```bash
+uv run python -m voice_assistant setup
+```
+
+The wizard will:
+- Detect your system (Windows/Mac/Linux)
+- Detect GPU (NVIDIA CUDA, Apple Metal, or CPU-only)
+- Recommend optimal settings
+- Install required packages
+- Show next steps
+
+### Option 2: Use Remote llama.cpp Server (Recommended for testing)
 
 1. **Start llama.cpp server** (in a separate terminal):
    ```bash
@@ -16,7 +31,7 @@
    uv run python -m voice_assistant cli --server-url http://localhost:8000
    ```
 
-### Option 2: Run LLM Locally
+### Option 3: Run LLM Locally
 
 1. **Install LLM dependencies**:
    ```bash
@@ -28,7 +43,7 @@
    uv run python -m voice_assistant cli
    ```
 
-### Option 3: Full Voice Assistant (with microphone/speaker)
+### Option 4: Full Voice Assistant (with microphone/speaker)
 
 1. **Install all dependencies**:
    ```bash
