@@ -3,6 +3,7 @@
 import typer
 from typing import Optional
 from rich.console import Console
+from rich.table import Table
 
 app = typer.Typer(
     name="voice-assistant",
@@ -173,7 +174,7 @@ def list_models() -> None:
     console.print("[bold]Available LLM Models[/]")
     console.print("")
 
-    table = typer.table.Table(title="LLM Models")
+    table = Table(title="LLM Models")
     table.add_column("Model", style="cyan")
     table.add_column("HuggingFace ID")
     table.add_column("Context")
@@ -185,8 +186,8 @@ def list_models() -> None:
             name,
             info["hf_id"],
             str(info.get("context", "N/A")),
-            "✓" if info.get("tool_calling") else "✗",
-            "✓" if info.get("vietnamese") else "✗",
+            "Yes" if info.get("tool_calling") else "No",
+            "Yes" if info.get("vietnamese") else "No",
         )
 
     console.print(table)
@@ -195,7 +196,7 @@ def list_models() -> None:
     console.print("[bold]Available VLM Models[/]")
     console.print("")
 
-    table = typer.table.Table(title="VLM Models")
+    table = Table(title="VLM Models")
     table.add_column("Model", style="cyan")
     table.add_column("HuggingFace ID")
     table.add_column("Context")
