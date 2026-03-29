@@ -1,4 +1,4 @@
-"""Interactive setup wizard for voice assistant components."""
+"""Interactive setup wizard for voice assistant components with model selection."""
 
 import sys
 import platform
@@ -143,107 +143,175 @@ class SystemInfo:
         return "UV" in str(subprocess.__file__) or shutil.which("uv") is not None
 
 
-class ComponentSetup:
-    """Component installation manager."""
+# =============================================================================
+# MODEL REGISTRIES - Available models for each component
+# =============================================================================
 
-    VAD = {
-        "name": "VAD (Voice Activity Detection)",
-        "description": "Detects speech segments and filters silence",
-        "packages": ["silero-vad>=0.4.0"],
-        "required_for": ["Full voice assistant", "Real-time microphone input"],
-        "optional": False,
-        "recommended": True,
-    }
-
-    ASR = {
-        "name": "ASR (Speech-to-Text)",
-        "description": "Transcribes speech to text (Vietnamese)",
+ASR_MODELS = {
+    "zipformer": {
+        "name": "Zipformer (Sherpa-onnx)",
+        "description": "Streaming ASR for Vietnamese, fast and accurate",
         "packages": ["sherpa-onnx>=1.10.0"],
-        "required_for": ["Voice transcription", "Streaming ASR"],
-        "optional": False,
         "recommended": True,
-    }
+        "language": "Vietnamese",
+        "streaming": True,
+    },
+    "whisper": {
+        "name": "Whisper (OpenAI)",
+        "description": "Multilingual ASR, good accuracy, slower",
+        "packages": ["openai-whisper", "torch"],
+        "recommended": False,
+        "language": "Multilingual",
+        "streaming": False,
+    },
+    "parakeet": {
+        "name": "Parakeet (NVIDIA)",
+        "description": "High accuracy Vietnamese ASR from NVIDIA",
+        "packages": ["nemo-toolkit", "cython"],
+        "recommended": False,
+        "language": "Vietnamese",
+        "streaming": False,
+        "note": "Requires complex setup, isolated environment",
+    },
+}
 
-    LLM_LOCAL = {
-        "name": "LLM (Local)",
-        "description": "Run language model locally (llama.cpp)",
+LLM_MODELS = {
+    "qwen3-2b": {
+        "name": "Qwen3 2B (GGUF)",
+        "description": "Best balance of speed and quality, Vietnamese support",
         "packages": ["llama-cpp-python>=0.2.50", "huggingface_hub>=0.20.0"],
-        "required_for": ["Local AI responses", "No external server needed"],
-        "optional": True,
         "recommended": True,
-        "alternatives": {
-            "server": {
-                "name": "LLM (Remote Server)",
-                "description": "Connect to external llama.cpp server",
-                "packages": ["requests"],
-                "note": "Requires llama.cpp server running separately",
-            }
-        }
-    }
-
-    LLM_SERVER = {
-        "name": "LLM (Remote Server)",
-        "description": "Connect to external llama.cpp server",
+        "ram_required_gb": 8,
+        "context": 32768,
+        "vietnamese": True,
+    },
+    "qwen3-0.6b": {
+        "name": "Qwen3 0.6B (GGUF)",
+        "description": "Fast, lightweight, good for testing",
+        "packages": ["llama-cpp-python>=0.2.50", "huggingface_hub>=0.20.0"],
+        "recommended": False,
+        "ram_required_gb": 4,
+        "context": 32768,
+        "vietnamese": True,
+    },
+    "lfm2-1.6b": {
+        "name": "Liquid LFM2 1.6B (GGUF)",
+        "description": "Good reasoning, no Vietnamese support",
+        "packages": ["llama-cpp-python>=0.2.50", "huggingface_hub>=0.20.0"],
+        "recommended": False,
+        "ram_required_gb": 6,
+        "context": 8192,
+        "vietnamese": False,
+    },
+    "remote": {
+        "name": "Remote llama.cpp Server",
+        "description": "Connect to external server (no local LLM)",
         "packages": ["requests>=2.28.0"],
-        "required_for": ["Remote LLM inference"],
-        "optional": True,
         "recommended": False,
-    }
+        "ram_required_gb": 0,
+        "note": "Requires llama.cpp server running separately",
+    },
+}
 
-    TTS = {
-        "name": "TTS (Text-to-Speech)",
-        "description": "Synthesize speech with Vietnamese voices",
+TTS_MODELS = {
+    "vietneu-tts": {
+        "name": "VieNeu-TTS (LMDeploy)",
+        "description": "Fast Vietnamese TTS with 6 voice presets, 5x real-time",
         "packages": ["vieneu>=0.1.0"],
-        "required_for": ["Voice output", "Audio responses"],
-        "optional": True,
         "recommended": True,
-    }
-
-    AUDIO = {
-        "name": "Audio I/O",
-        "description": "Microphone input and speaker output",
-        "packages": ["pyaudio>=0.2.13", "sounddevice>=0.4.6", "numpy>=1.20.0"],
-        "required_for": ["Microphone input", "Speaker output"],
-        "optional": False,
-        "recommended": True,
-    }
-
-    TUI = {
-        "name": "TUI (Terminal UI)",
-        "description": "Rich terminal interface with live display",
-        "packages": ["rich>=13.0", "typer>=0.9"],
-        "required_for": ["Live transcription display", "Interactive interface"],
-        "optional": True,
-        "recommended": True,
-    }
-
-    VISION = {
-        "name": "Vision (VLM)",
-        "description": "Image and screen analysis",
-        "packages": ["opencv-python>=4.9.0", "pillow>=10.0.0"],
-        "required_for": ["Screen capture", "Camera analysis"],
-        "optional": True,
+        "language": "Vietnamese",
+        "voices": 6,
+        "realtime_factor": 0.2,
+    },
+    "vietts": {
+        "name": "VietTTS (Facebook MMS)",
+        "description": "Lightweight Vietnamese TTS from Facebook MMS, 49x real-time",
+        "packages": ["transformers>=4.30.0", "torch", "torchaudio"],
         "recommended": False,
-    }
+        "language": "Vietnamese",
+        "voices": 1,
+        "realtime_factor": 0.02,
+    },
+    "xtts-v2": {
+        "name": "XTTS-v2 (Coqui)",
+        "description": "High quality with voice cloning, slower",
+        "packages": ["TTS>=0.20.0"],
+        "recommended": False,
+        "language": "Multilingual",
+        "voices": "Cloning",
+        "realtime_factor": 0.5,
+        "note": "Vietnamese via fallback to MMS",
+    },
+}
 
-    ALL = {
-        "name": "All Components",
-        "description": "Install everything for full functionality",
-        "packages": [".[all]"],
-        "required_for": ["Complete voice assistant experience"],
-        "optional": False,
-        "recommended": True,
-    }
+AUDIO_PACKAGES = {
+    "name": "Audio I/O",
+    "description": "Microphone input and speaker output (required for voice interaction)",
+    "packages": ["pyaudio>=0.2.13", "sounddevice>=0.4.6", "numpy>=1.20.0"],
+    "required_for": [
+        "Microphone input for ASR",
+        "Speaker output for TTS playback",
+        "Real-time audio streaming",
+    ],
+    "note": "Not needed for text-only CLI mode",
+}
 
+VAD_PACKAGES = {
+    "name": "VAD (Voice Activity Detection)",
+    "description": "Detects when you start/stop speaking",
+    "packages": ["silero-vad>=0.4.0"],
+    "required_for": [
+        "Auto-start transcription when you speak",
+        "Filter silence and background noise",
+        "Real-time voice detection",
+    ],
+    "recommended": True,
+}
+
+ASR_PACKAGES = {
+    "name": "ASR (Speech-to-Text)",
+    "description": "Transcribes speech to text",
+    "recommended": True,
+}
+
+TUI_PACKAGES = {
+    "name": "TUI (Terminal UI)",
+    "description": "Rich terminal interface with live transcription display",
+    "packages": ["rich>=13.0", "typer>=0.9"],
+    "required_for": [
+        "Live transcription display",
+        "Interactive interface with status panels",
+        "Hotkey controls (M, V, S, Q)",
+    ],
+    "recommended": True,
+}
+
+VISION_PACKAGES = {
+    "name": "Vision (VLM)",
+    "description": "Image and screen analysis with vision language models",
+    "packages": ["opencv-python>=4.9.0", "pillow>=10.0.0"],
+    "required_for": [
+        "Screen capture and analysis",
+        "Camera input for VLM",
+        "Image file analysis",
+    ],
+    "recommended": False,
+}
+
+
+# =============================================================================
+# SETUP WIZARD
+# =============================================================================
 
 class SetupWizard:
-    """Interactive setup wizard."""
+    """Interactive setup wizard with model selection."""
 
     def __init__(self):
         self.sys_info = SystemInfo()
         self.platform = self.sys_info.get_platform()
         self.gpu_info = self.sys_info.get_gpu_info()
         self.ram_gb = self.sys_info.get_ram_gb()
+        self.selected_models = {}
 
     def detect_environment(self) -> Dict[str, Any]:
         info = {
@@ -254,7 +322,6 @@ class SetupWizard:
             "using_uv": self.sys_info.is_using_uv(),
         }
 
-        # Determine recommendations
         if info["gpu"]:
             gpu_type = info["gpu"]["type"]
             if gpu_type == "cuda":
@@ -270,13 +337,12 @@ class SetupWizard:
             info["recommended_backend"] = "cpu"
             info["llm_gpu_layers"] = 0
 
-        # LLM recommendation based on RAM
         if info["ram_gb"] >= 16:
             info["recommended_llm"] = "qwen3-2b"
         elif info["ram_gb"] >= 8:
-            info["recommended_llm"] = "qwen3-0.6b"
+            info["recommended_llm"] = "qwen3-2b"
         else:
-            info["recommended_llm"] = "remote-server"
+            info["recommended_llm"] = "qwen3-0.6b"
 
         return info
 
@@ -301,373 +367,389 @@ class SetupWizard:
             if info["gpu"]["type"] == "cuda":
                 vram = info["gpu"].get("memory_gb", 0)
                 table.add_row("CUDA", f"[green]Yes ({vram:.1f} GB VRAM)[/green]")
-                table.add_row("Recommendation", f"[green]Use CUDA for LLM/TTS[/green]")
             elif info["gpu"]["type"] == "metal":
                 table.add_row("Metal", "[green]Yes (Apple Silicon)[/green]")
-                table.add_row("Recommendation", f"[green]Use Metal for LLM/TTS[/green]")
         else:
             table.add_row("GPU", "[yellow]Not detected (CPU mode)[/yellow]")
-            if info["ram_gb"] >= 16:
-                table.add_row("Recommendation", "[green]CPU inference possible with smaller models[/green]")
-            else:
-                table.add_row("Recommendation", "[yellow]Consider remote llama.cpp server[/yellow]")
 
         table.add_row("Package Manager", "[green]uv[/green]" if info["using_uv"] else "[yellow]pip[/yellow]")
 
         console.print(table)
         console.print("")
 
-    def show_component_menu(self) -> List[str]:
-        """Show component selection menu."""
+    def select_asr_model(self) -> str:
+        """Select ASR model."""
         console.print(Panel.fit(
-            "[bold]Select Components to Install[/bold]\n\n"
-            "Choose which parts of the voice assistant to set up.",
+            "[bold]Step 1: Select ASR (Speech-to-Text) Model[/bold]\n\n"
+            "This transcribes Vietnamese speech to text.",
+            border_style="blue",
+        ))
+        console.print("")
+
+        table = Table(title="Available ASR Models")
+        table.add_column("#", style="cyan", width=2)
+        table.add_column("Model", style="green bold")
+        table.add_column("Description", style="white")
+        table.add_column("Streaming", style="yellow")
+        table.add_column("Packages", style="dim")
+
+        models = list(ASR_MODELS.keys())
+        for i, key in enumerate(models, 1):
+            model = ASR_MODELS[key]
+            streaming = "[green]Yes[/green]" if model.get("streaming") else "[yellow]No[/yellow]"
+            packages = ", ".join(model["packages"][:2])
+            if len(model["packages"]) > 2:
+                packages += "..."
+            table.add_row(
+                str(i),
+                model["name"],
+                model["description"],
+                streaming,
+                packages[:40] + "..." if len(packages) > 40 else packages,
+            )
+
+        console.print(table)
+
+        default = "1"
+        choice = Prompt.ask("Select ASR model", default=default)
+
+        selected_key = models[int(choice) - 1]
+        self.selected_models["asr"] = selected_key
+
+        console.print(f"[green]Selected:[/green] {ASR_MODELS[selected_key]['name']}")
+        console.print("")
+
+        return selected_key
+
+    def select_llm_model(self) -> str:
+        """Select LLM model."""
+        console.print(Panel.fit(
+            "[bold]Step 2: Select LLM (Language Model)[/bold]\n\n"
+            "This generates AI responses. Choose local or remote server.",
+            border_style="blue",
+        ))
+        console.print("")
+
+        table = Table(title="Available LLM Models")
+        table.add_column("#", style="cyan", width=2)
+        table.add_column("Model", style="green bold")
+        table.add_column("Description", style="white")
+        table.add_column("Vietnamese", style="yellow")
+        table.add_column("RAM Required", style="dim")
+
+        models = list(LLM_MODELS.keys())
+        for i, key in enumerate(models, 1):
+            model = LLM_MODELS[key]
+            vietnamese = "[green]Yes[/green]" if model.get("vietnamese") else "[red]No[/red]"
+            ram = f"{model.get('ram_required_gb', 0)} GB" if model.get("ram_required_gb") else "N/A"
+            table.add_row(
+                str(i),
+                model["name"],
+                model["description"],
+                vietnamese,
+                ram,
+            )
+
+        console.print(table)
+
+        # Recommend based on RAM
+        recommended = self.detect_environment()["recommended_llm"]
+        default_idx = models.index(recommended) + 1 if recommended in models else 1
+
+        choice = Prompt.ask("Select LLM model", default=str(default_idx))
+
+        selected_key = models[int(choice) - 1]
+        self.selected_models["llm"] = selected_key
+
+        console.print(f"[green]Selected:[/green] {LLM_MODELS[selected_key]['name']}")
+        console.print("")
+
+        return selected_key
+
+    def select_tts_model(self) -> str:
+        """Select TTS model."""
+        console.print(Panel.fit(
+            "[bold]Step 3: Select TTS (Text-to-Speech) Model[/bold]\n\n"
+            "This synthesizes Vietnamese voice output.",
+            border_style="blue",
+        ))
+        console.print("")
+
+        table = Table(title="Available TTS Models")
+        table.add_column("#", style="cyan", width=2)
+        table.add_column("Model", style="green bold")
+        table.add_column("Description", style="white")
+        table.add_column("Real-time", style="yellow")
+        table.add_column("Voices", style="dim")
+
+        models = list(TTS_MODELS.keys())
+        for i, key in enumerate(models, 1):
+            model = TTS_MODELS[key]
+            rt = f"{model.get('realtime_factor', 1)}x"
+            voices = str(model.get("voices", "1"))
+            table.add_row(
+                str(i),
+                model["name"],
+                model["description"],
+                f"[green]{rt}[/green]",
+                voices,
+            )
+
+        console.print(table)
+
+        default = "1"
+        choice = Prompt.ask("Select TTS model", default=default)
+
+        selected_key = models[int(choice) - 1]
+        self.selected_models["tts"] = selected_key
+
+        console.print(f"[green]Selected:[/green] {TTS_MODELS[selected_key]['name']}")
+        console.print("")
+
+        return selected_key
+
+    def select_components(self) -> List[str]:
+        """Select which component categories to install."""
+        console.print(Panel.fit(
+            "[bold]Step 4: Select Component Categories[/bold]\n\n"
+            "Choose which parts of the voice assistant to install.",
             border_style="green",
         ))
         console.print("")
 
-        # Preset configurations
-        presets = {
-            "full": {
-                "name": "Full Installation (Recommended)",
-                "components": ["vad", "asr", "llm_local", "tts", "audio", "tui"],
-                "description": "Everything for complete voice assistant",
-            },
-            "minimal": {
-                "name": "Minimal (CLI text-only)",
-                "components": ["llm_local", "tui"],
-                "description": "Basic chat without audio",
-            },
-            "server": {
-                "name": "Server Mode",
-                "components": ["vad", "asr", "llm_server", "tts", "audio", "tui"],
-                "description": "Connect to remote llama.cpp server",
-            },
-            "custom": {
-                "name": "Custom Selection",
-                "components": [],
-                "description": "Pick individual components",
-            },
-        }
-
-        # Show presets table
-        table = Table(title="Installation Presets")
+        table = Table(title="Component Categories")
         table.add_column("#", style="cyan", width=2)
-        table.add_column("Name", style="green bold")
-        table.add_column("Components", style="white")
-        table.add_column("Best For", style="yellow")
+        table.add_column("Category", style="green bold")
+        table.add_column("Purpose", style="white")
+        table.add_column("Needed For", style="yellow")
 
-        table.add_row(
-            "1", "Full",
-            "VAD + ASR + LLM + TTS + Audio",
-            "Complete voice assistant experience",
-        )
-        table.add_row(
-            "2", "Minimal",
-            "LLM + TUI only",
-            "Quick testing, text-only chat",
-        )
-        table.add_row(
-            "3", "Server Mode",
-            "All + Remote LLM",
-            "Systems without local LLM support",
-        )
-        table.add_row(
-            "4", "Custom",
-            "Choose individually",
-            "Advanced users",
-        )
+        components = [
+            ("vad", "VAD", "Voice activity detection", "Auto speech detection"),
+            ("asr", "ASR", "Speech-to-text", "Transcription"),
+            ("llm", "LLM", "Language model", "AI responses"),
+            ("tts", "TTS", "Text-to-speech", "Voice output"),
+            ("audio", "Audio I/O", "Mic/speaker drivers", "Physical audio devices"),
+            ("tui", "TUI", "Terminal interface", "Live display"),
+            ("vision", "Vision", "Image/screen analysis", "VLM features"),
+        ]
+
+        for i, (key, name, desc, req) in enumerate(components, 1):
+            required = "[green]Yes[/green]" if key in ["audio", "tui"] else "[yellow]No[/yellow]"
+            table.add_row(str(i), name, desc, required)
 
         console.print(table)
         console.print("")
 
-        choice = Prompt.ask(
-            "Select preset",
-            choices=["1", "2", "3", "4"],
-            default="1"
-        )
-
-        if choice == "4":
-            # Custom selection
-            return self._custom_component_selection()
-        elif choice == "1":
-            return presets["full"]["components"]
-        elif choice == "2":
-            return presets["minimal"]["components"]
-        elif choice == "3":
-            return presets["server"]["components"]
-
-        return presets["full"]["components"]
-
-    def _custom_component_selection(self) -> List[str]:
-        """Let user pick individual components."""
-        console.print("")
-        console.print("[bold]Select components (comma-separated numbers):[/bold]")
+        # Explain Audio I/O
+        console.print(Panel.fit(
+            "[bold]What is Audio I/O?[/bold]\n\n"
+            "Audio I/O (Input/Output) handles physical audio devices:\n"
+            "- [cyan]Microphone input[/cyan] - Captures your voice for ASR\n"
+            "- [cyan]Speaker output[/cyan] - Plays TTS responses\n"
+            "- [cyan]Packages:[/cyan] pyaudio, sounddevice, numpy\n\n"
+            "[dim]Required for: Full voice assistant with mic/speaker\n"
+            "Not needed for: Text-only CLI mode[/dim]",
+            border_style="dim",
+            title="Audio I/O Explanation",
+        ))
         console.print("")
 
-        components = []
-        idx = 1
-
-        table = Table()
-        table.add_column("#", style="cyan")
-        table.add_column("Component", style="green")
-        table.add_column("Description", style="white")
-        table.add_column("Required", style="yellow")
-
-        component_map = {
-            "vad": ComponentSetup.VAD,
-            "asr": ComponentSetup.ASR,
-            "llm_local": ComponentSetup.LLM_LOCAL,
-            "llm_server": ComponentSetup.LLM_SERVER,
-            "tts": ComponentSetup.TTS,
-            "audio": ComponentSetup.AUDIO,
-            "tui": ComponentSetup.TUI,
-            "vision": ComponentSetup.VISION,
-        }
-
-        for key, comp in component_map.items():
-            required = "[green]Yes[/green]" if not comp.get("optional", False) else "[yellow]No[/yellow]"
-            table.add_row(str(idx), comp["name"], comp["description"], required)
-            components.append(key)
-            idx += 1
-
-        console.print(table)
-        console.print("")
-
-        # Auto-select recommended
-        default_selection = "1,2,3,5,6,7"  # vad, asr, llm_local, tts, audio, tui
-        selection = Prompt.ask(
-            "Enter component numbers",
-            default=default_selection
-        )
+        console.print("[dim]Default: Full installation (components 1-6, skip vision)[/dim]")
+        default = "1,2,3,4,5,6"
+        selection = Prompt.ask("Select components (comma-separated)", default=default)
 
         selected = []
         for num in selection.split(","):
             num = num.strip()
             if num.isdigit() and 1 <= int(num) <= len(components):
-                selected.append(components[int(num) - 1])
+                selected.append(components[int(num) - 1][0])
 
-        return selected if selected else ["vad", "asr", "llm_local", "tui"]
+        console.print(f"[green]Selected:[/green] {', '.join(selected)}")
+        console.print("")
 
-    def get_packages_to_install(self, selected_components: List[str]) -> Tuple[List[str], Dict[str, str]]:
-        """Get list of packages to install based on selected components."""
-        packages = []
-        component_status = {}
+        return selected
 
-        component_map = {
-            "vad": ComponentSetup.VAD,
-            "asr": ComponentSetup.ASR,
-            "llm_local": ComponentSetup.LLM_LOCAL,
-            "llm_server": ComponentSetup.LLM_SERVER,
-            "tts": ComponentSetup.TTS,
-            "audio": ComponentSetup.AUDIO,
-            "tui": ComponentSetup.TUI,
-            "vision": ComponentSetup.VISION,
-        }
+    def get_packages(self, components: List[str]) -> List[str]:
+        """Get all packages to install."""
+        packages = set()
 
-        for comp_key in selected_components:
-            if comp_key in component_map:
-                comp = component_map[comp_key]
-                packages.extend(comp["packages"])
-                component_status[comp["name"]] = "pending"
+        # Add Audio I/O packages if audio component selected
+        if "audio" in components:
+            packages.update(AUDIO_PACKAGES["packages"])
 
-        # Handle special case: .[all]
-        if ".[all]" in packages:
-            return [".[all]"], {"All Components": "pending"}
+        # Add TUI packages if TUI component selected
+        if "tui" in components:
+            packages.update(TUI_PACKAGES["packages"])
 
-        return packages, component_status
+        # Add VAD packages if VAD component selected
+        if "vad" in components:
+            packages.update(VAD_PACKAGES["packages"])
 
-    def install_packages(self, packages: List[str], using_uv: bool) -> Dict[str, bool]:
-        """Install packages and return success status per package."""
-        results = {}
+        # Add ASR model packages
+        if "asr" in components and self.selected_models.get("asr"):
+            asr_key = self.selected_models["asr"]
+            packages.update(ASR_MODELS[asr_key]["packages"])
 
+        # Add LLM model packages
+        if "llm" in components and self.selected_models.get("llm"):
+            llm_key = self.selected_models["llm"]
+            if llm_key != "remote":
+                packages.update(LLM_MODELS[llm_key]["packages"])
+            else:
+                packages.update(LLM_MODELS[llm_key]["packages"])
+
+        # Add TTS model packages
+        if "tts" in components and self.selected_models.get("tts"):
+            tts_key = self.selected_models["tts"]
+            packages.update(TTS_MODELS[tts_key]["packages"])
+
+        # Add Vision packages if selected
+        if "vision" in components:
+            packages.update(VISION_PACKAGES["packages"])
+
+        return list(packages)
+
+    def install_packages(self, packages: List[str], using_uv: bool) -> bool:
+        """Install packages."""
         if not packages:
             console.print("[yellow]No packages to install[/yellow]")
-            return results
+            return True
 
-        console.print("")
         console.print(Panel.fit(
-            f"[bold]Installing packages:[/bold]\n{', '.join(packages)}",
+            f"[bold]Installing {len(packages)} packages...[/bold]\n\n"
+            + "\n".join(packages[:10])
+            + ("\n..." if len(packages) > 10 else ""),
             border_style="yellow",
         ))
-        console.print("")
 
         try:
             with Progress(
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
                 BarColumn(),
-                TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
                 console=console,
             ) as progress:
-                task = progress.add_task("Installing...", total=len(packages))
+                task = progress.add_task("Installing...", total=None)
 
                 if using_uv:
                     cmd = ["uv", "pip", "install"]
                 else:
                     cmd = [sys.executable, "-m", "pip", "install"]
 
-                # Install all packages at once
                 cmd.extend(packages)
-
-                process = progress.add_task(f"Running: {' '.join(cmd[:3])}...", total=None)
 
                 result = subprocess.run(
                     cmd,
                     capture_output=True,
                     text=True,
-                    timeout=300,
+                    timeout=600,
                 )
 
-                progress.update(task, completed=len(packages))
+                progress.update(task, completed=True)
 
                 if result.returncode == 0:
-                    console.print("[green]All packages installed successfully![/green]")
-                    for pkg in packages:
-                        results[pkg] = True
-
-                    # Show any warnings
-                    if "warning" in result.stderr.lower():
-                        console.print("[yellow]Warnings:[/yellow]")
-                        for line in result.stderr.split("\n"):
-                            if "warning" in line.lower():
-                                console.print(f"  {line}")
+                    console.print("[green]All packages installed![/green]")
+                    return True
                 else:
                     console.print(f"[red]Installation failed:[/red]")
-                    console.print(result.stderr)
-                    for pkg in packages:
-                        results[pkg] = False
+                    console.print(result.stderr[:1000])
+                    return False
 
         except subprocess.TimeoutExpired:
-            console.print("[red]Installation timed out (5 min limit)[/red]")
-            for pkg in packages:
-                results[pkg] = False
+            console.print("[red]Installation timed out[/red]")
+            return False
         except Exception as e:
             console.print(f"[red]Error: {e}[/red]")
-            for pkg in packages:
-                results[pkg] = False
+            return False
 
-        return results
-
-    def show_component_status(self, status: Dict[str, bool]) -> None:
-        """Show installation status per component."""
-        console.print("")
-        console.print(Panel.fit(
-            "[bold]Installation Status[/bold]",
-            border_style="green",
-        ))
-
-        table = Table(show_header=False, box=None)
-        table.add_column("Status", style="cyan", width=3)
-        table.add_column("Component", style="white")
-
-        for pkg, success in status.items():
-            icon = "[green]✓[/green]" if success else "[red]✗[/red]"
-            table.add_row(icon, pkg)
-
-        console.print(table)
-
-    def show_next_steps(self, selected_components: List[str], install_success: Dict[str, bool]) -> None:
-        """Show next steps after installation."""
-        console.print("")
-        console.print(Panel.fit(
-            "[bold]Next Steps[/bold]",
-            border_style="blue",
-        ))
-
-        steps = []
-
-        # Check what was installed
-        has_llm_local = "llm_local" in selected_components and install_success.get("llama-cpp-python>=0.2.50", False)
-        has_llm_server = "llm_server" in selected_components
-        has_full = "vad" in selected_components and "asr" in selected_components
-
-        if has_llm_local:
-            steps.append("""
-[bold green]1. Run Voice Assistant (Local LLM)[/bold green]
-
-   [cyan]uv run python -m voice_assistant cli[/cyan]
-
-   The LLM model will be downloaded automatically on first use.
-   Recommended model: qwen3-2b (requires ~4GB disk)
-""")
-        elif has_llm_server:
-            steps.append("""
-[bold green]1. Start llama.cpp Server[/bold green]
-
-   Download llama.cpp from: https://github.com/ggerganov/llama.cpp/releases
-
-   [cyan]llama-server.exe -m qwen3-2b-q4_k_m.gguf --port 8000[/cyan]
-
-[bold green]2. Connect Voice Assistant[/bold green]
-
-   [cyan]uv run python -m voice_assistant cli --server-url http://localhost:8000[/cyan]
-""")
-
-        if has_full:
-            steps.append("""
-[bold green]Full Voice Assistant (with audio)[/bold green]
-
-   [cyan]uv run python -m voice_assistant run[/cyan]
-
-   This starts the complete pipeline:
-   - VAD: Voice activity detection
-   - ASR: Speech-to-text transcription
-   - LLM: AI responses
-   - TTS: Voice output
-""")
-
-        steps.append("""
-[bold]Available Commands[/bold]
-
-  [cyan]uv run python -m voice_assistant cli[/cyan]      - Text-only chat
-  [cyan]uv run python -m voice_assistant run[/cyan]      - Full TUI interface
-  [cyan]uv run python -m voice_assistant list-models[/cyan] - Show available models
-""")
-
-        for i, step in enumerate(steps, 1):
-            console.print(step)
-            if i < len(steps):
-                console.print("---")
-                console.print("")
-
-    def generate_config(self, info: Dict[str, Any], components: List[str]) -> None:
-        """Generate a recommended config file."""
-        console.print("")
-        console.print("[bold]Generating recommended config...[/bold]")
-
+    def generate_config(self, info: Dict[str, Any], components: List[str]) -> str:
+        """Generate config file."""
         import json
 
         config = {
+            "_comment": "Generated by voice-assistant setup wizard",
             "llm": {
-                "model": info["recommended_llm"] if info["recommended_llm"] != "remote-server" else "qwen3-2b",
-            },
-            "tts": {
-                "model": "vietneu-tts",
-                "use_gpu": info["gpu"] is not None,
+                "model": self.selected_models.get("llm", "qwen3-2b"),
             },
         }
 
-        if info["gpu"]:
+        if info["gpu"] and self.selected_models.get("llm") != "remote":
             config["llm"]["n_gpu_layers"] = info.get("llm_gpu_layers", 35)
 
-        if "llm_server" in components and info["gpu"] is None:
-            config["llm"]["server_url"] = "http://localhost:8000"
+        if self.selected_models.get("tts"):
+            config["tts"] = {
+                "model": self.selected_models["tts"],
+                "use_gpu": info["gpu"] is not None,
+            }
+            if self.selected_models["tts"] == "vietneu-tts":
+                config["tts"]["backend"] = "lmdeploy"
+                config["tts"]["speaker"] = "neutrale"
+
+        if self.selected_models.get("asr"):
+            config["asr"] = {
+                "model": self.selected_models["asr"],
+                "language": "vi",
+            }
+
+        if "audio" in components:
+            config["audio"] = {
+                "chunk_size": 512,
+                "buffer_size": 2048,
+            }
 
         config_path = "voice_config.json"
         with open(config_path, "w") as f:
-            json.dump(config, f, indent=2)
+            json.dump(config, f, indent=2, ensure_ascii=False)
 
-        console.print(f"[green]Config saved to:[/green] {config_path}")
-        console.print("")
-        console.print("[dim]Load config with: -c voice_config.json[/dim]")
+        return config_path
+
+    def show_next_steps(self, config_path: str) -> None:
+        """Show next steps."""
+        console.print(Panel.fit(
+            "[bold]Setup Complete! Next Steps:[/bold]",
+            border_style="green",
+        ))
+
+        llm_model = self.selected_models.get("llm", "qwen3-2b")
+
+        if llm_model == "remote":
+            console.print("""
+[bold]1. Start llama.cpp Server[/bold]
+   [cyan]llama-server.exe -m qwen3-2b-q4_k_m.gguf --port 8000[/cyan]
+
+[bold]2. Run Voice Assistant[/bold]
+   [cyan]uv run python -m voice_assistant cli --server-url http://localhost:8000[/cyan]
+""")
+        else:
+            console.print(f"""
+[bold]1. Run Voice Assistant[/bold]
+
+   CLI mode (text-only):
+   [cyan]uv run python -m voice_assistant cli -c {config_path}[/cyan]
+
+   TUI mode (full interface):
+   [cyan]uv run python -m voice_assistant run -c {config_path}[/cyan]
+
+[bold]Model:[/bold] {llm_model} (downloaded on first use)
+""")
+
+        console.print("""
+[bold]Available Commands:[/bold]
+  [cyan]voice-assistant cli[/cyan]     - Text-only chat
+  [cyan]voice-assistant run[/cyan]     - Full TUI interface
+  [cyan]voice-assistant list-models[/cyan] - Show models
+""")
 
     def run(self) -> int:
         """Run the setup wizard."""
         console.print(Panel.fit(
             "[bold cyan]Voice Assistant Setup Wizard[/bold cyan]\n\n"
-            "Step-by-step setup for VAD, ASR, LLM, and TTS components\n"
-            "Optimized for your hardware configuration.",
+            "Select and install components with specific models:\n"
+            "- ASR: Zipformer, Whisper, Parakeet\n"
+            "- LLM: Qwen3, LFM2, or Remote Server\n"
+            "- TTS: VieNeu-TTS, VietTTS, XTTS-v2\n"
+            "- Audio I/O: Microphone and speaker support\n"
+            "- TUI: Rich terminal interface",
             border_style="cyan",
         ))
         console.print("")
@@ -677,36 +759,47 @@ class SetupWizard:
         info = self.detect_environment()
         self.print_system_info(info)
 
-        # Select components
-        selected = self.show_component_menu()
-        console.print(f"\nSelected: [green]{', '.join(selected)}[/green]\n")
+        # Step 1: Select ASR model
+        self.select_asr_model()
 
-        if not Confirm.ask("Continue with installation?", default=True):
+        # Step 2: Select LLM model
+        self.select_llm_model()
+
+        # Step 3: Select TTS model
+        self.select_tts_model()
+
+        # Step 4: Select components
+        components = self.select_components()
+
+        # Confirm
+        console.print("")
+        console.print(Panel.fit(
+            "[bold]Summary[/bold]\n\n"
+            f"ASR: {ASR_MODELS[self.selected_models.get('asr', 'zipformer')]['name']}\n"
+            f"LLM: {LLM_MODELS[self.selected_models.get('llm', 'qwen3-2b')]['name']}\n"
+            f"TTS: {TTS_MODELS[self.selected_models.get('tts', 'vietneu-tts')]['name']}\n"
+            f"Components: {', '.join(components)}",
+            border_style="green",
+        ))
+
+        if not Confirm.ask("\nContinue with installation?", default=True):
             console.print("[yellow]Setup cancelled.[/yellow]")
             return 1
 
         # Get packages
-        packages, component_status = self.get_packages_to_install(selected)
+        packages = self.get_packages(components)
 
         # Install
-        install_results = self.install_packages(packages, info["using_uv"])
-        self.show_component_status(install_results)
+        success = self.install_packages(packages, info["using_uv"])
 
         # Generate config
-        self.generate_config(info, selected)
+        config_path = self.generate_config(info, components)
+        console.print(f"[green]Config saved:[/green] {config_path}")
 
         # Show next steps
-        self.show_next_steps(selected, install_results)
+        self.show_next_steps(config_path)
 
-        # Summary
-        all_success = all(install_results.values()) if install_results else False
-        if all_success:
-            console.print("\n[bold green]Setup completed successfully![/bold green]")
-        else:
-            console.print("\n[bold yellow]Setup completed with some errors.[/bold yellow]")
-            console.print("[dim]You can re-run setup or install missing packages manually.[/dim]")
-
-        return 0 if all_success else 1
+        return 0 if success else 1
 
 
 def main():
