@@ -226,6 +226,18 @@ def list_models() -> None:
     console.print(table)
 
 
+@app.command("setup")
+def setup_wizard() -> None:
+    """
+    Interactive setup wizard for voice assistant.
+
+    Detects your system (Windows/Mac/Linux, GPU/CPU) and recommends
+    the optimal installation settings.
+    """
+    from voice_assistant.setup import main
+    main()
+
+
 @app.command("benchmark")
 def benchmark(
     model: Optional[str] = typer.Option(
