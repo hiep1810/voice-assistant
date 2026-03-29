@@ -2,9 +2,10 @@
 
 A high-performance CLI tool for benchmarking the accuracy and speed (RTF) of leading Vietnamese Automatic Speech Recognition (ASR) and Text-to-Speech (TTS) models on your own hardware.
 
-**Two benchmarking suites in one project:**
+**Three benchmarking suites in one project:**
 - 🎤 **ASR (Speech-to-Text)** - Benchmark transcription models
 - 🔊 **TTS (Text-to-Speech)** - Benchmark voice synthesis models
+- 🎯 **VAD (Voice Activity Detection)** - Detect and segment speech
 
 ---
 
@@ -168,6 +169,74 @@ python -m tts_test batch-benchmark ./test_texts/
 
 ---
 
+## 🎯 VAD (Voice Activity Detection)
+
+Detect speech segments, trim silence, and segment audio files using Silero VAD.
+
+### Features
+
+- **Speech Detection:** Find all speech segments with precise timestamps
+- **Silence Trimming:** Remove silence from recordings automatically
+- **Audio Segmentation:** Split long audio into individual speech segments
+- **Real-time Processing:** RTF < 0.01 (100x faster than real-time)
+- **Language Agnostic:** Works on audio patterns, not language-specific
+
+### Available Models
+
+| Model | Description | Status |
+|-------|-------------|--------|
+| **silero-vad** | Silero VAD (language-agnostic) | ✅ Ready |
+
+### Commands
+
+#### List Available VAD Models
+```bash
+python -m vad_test list
+```
+
+#### Setup VAD Model
+```bash
+python -m vad_test setup silero-vad
+```
+
+#### Detect Speech Segments
+```bash
+python -m vad_test detect audio.wav
+# With JSON output: python -m vad_test detect audio.wav -o results.json
+```
+
+#### Trim Silence
+```bash
+python -m vad_test trim audio.wav -o trimmed.wav
+```
+
+#### Segment Audio
+```bash
+python -m vad_test segment audio.wav -o ./segments/
+```
+
+#### Benchmark Performance
+```bash
+python -m vad_test benchmark audio.wav
+```
+
+### VAD Metrics
+
+| Metric | Description | Good Value |
+|--------|-------------|------------|
+| **RTF** | Real Time Factor (speed) | < 0.1 |
+| **Speech Ratio** | % of audio that is speech | Varies |
+| **Segments** | Number of speech segments | Varies |
+
+### Use Cases
+
+1. **Pre-processing for ASR:** Trim silence before transcription for faster, more accurate results
+2. **Voice Assistant:** Real-time speech detection for auto start/stop recording
+3. **Audio Analysis:** Segment long recordings into individual utterances
+4. **Dataset Cleaning:** Remove silence from training data
+
+---
+
 ## 🧪 Annotated Decisions
 
 ### Why separate `run_<model>.py` scripts?
@@ -184,8 +253,11 @@ During development, we found `SenseVoiceSmall` had limited language support for 
 - `stt_test/scripts/`: Specialized Python scripts that run inside isolated environments.
 - `tts_test/`: Main package containing the TTS CLI, Registry, Environment Manager, and Audio Quality metrics.
 - `tts_test/scripts/`: TTS inference scripts for each model.
+- `vad_test/`: Main package containing the VAD CLI, Registry, Environment Manager, and Streaming VAD.
+- `vad_test/scripts/`: VAD inference scripts for speech detection.
 - `envs/`: (Generated) Directory where the model-specific virtual environments are stored.
   - `envs/tts/`: TTS-specific virtual environments.
+  - `envs/vad/`: VAD-specific virtual environments.
 - `docs/`: Technical deep-dives and post-mortems.
 - `plans/`: Implementation roadmaps for future features.
 

@@ -11,3 +11,4 @@ dependencies = [
 [project.scripts]
 stt-test = "stt_test.cli:app"
 tts-test = "tts_test.cli:app"
+vad-test = "vad_test.cli:app"
