@@ -26,6 +26,7 @@ class LlamaCppLLM:
     - KV cache continuation for fast multi-turn
     - Tool call parsing (Qwen3, LFM2 formats)
     - Streaming token generation
+    - Optional: Use remote llama.cpp server via HTTP API
     """
 
     def __init__(self, config: Optional[LLMConfig] = None):
@@ -35,13 +36,23 @@ class LlamaCppLLM:
         self._tools: Dict[str, ToolDefinition] = {}
         self._lock = threading.Lock()
 
+    @property
+    def is_remote(self) -> bool:
+        """Check if using remote server mode."""
+        return self.config.server_url is not None
+
     def load_model(self, model_path: Optional[str] = None) -> None:
         """
-        Load GGUF model.
+        Load GGUF model or connect to remote server.
 
         Args:
             model_path: Path to GGUF file. If None, downloads from HuggingFace.
+                        Ignored if using remote server mode.
         """
+        if self.is_remote:
+            self._connect_to_server()
+            return
+
         from llama_cpp import Llama
 
         if model_path is None:
@@ -58,6 +69,26 @@ class LlamaCppLLM:
 
         # Detect model type and set chat format
         self._detect_model_type()
+
+    def _connect_to_server(self) -> None:
+        """Connect to remote llama.cpp server."""
+        import requests
+
+        # Test connection
+        try:
+            response = requests.get(
+                f"{self.config.server_url}/health",
+                timeout=5,
+            )
+            if response.status_code == 200:
+                print(f"Connected to llama.cpp server at {self.config.server_url}")
+            else:
+                print(f"Warning: Server returned status {response.status_code}")
+        except requests.exceptions.RequestException as e:
+            print(f"Warning: Could not connect to server: {e}")
+            print("Falling back to local model loading...")
+            self.config.server_url = None
+            self.load_model()
 
     def _download_model(self) -> str:
         """Download model from HuggingFace."""
@@ -139,6 +170,10 @@ class LlamaCppLLM:
         Yields:
             Generated tokens (may be partial for streaming)
         """
+        if self.is_remote:
+            yield from self._generate_remote(messages, max_tokens, temperature, stream, tools)
+            return
+
         if self._model is None:
             raise RuntimeError("Model not loaded. Call load_model() first.")
 
@@ -177,6 +212,70 @@ class LlamaCppLLM:
             else:
                 content = response["choices"][0]["message"]["content"]
                 yield content
+
+    def _generate_remote(
+        self,
+        messages: List[Dict[str, str]],
+        max_tokens: int = 512,
+        temperature: float = 0.7,
+        stream: bool = True,
+        tools: Optional[List[Dict]] = None,
+    ) -> Generator[str, None, None]:
+        """
+        Generate response using remote llama.cpp server via HTTP API.
+
+        Uses OpenAI-compatible API endpoint.
+        """
+        import requests
+
+        url = f"{self.config.server_url}/v1/chat/completions"
+        headers = {
+            "Content-Type": "application/json",
+        }
+        if self.config.server_api_key:
+            headers["Authorization"] = f"Bearer {self.config.server_api_key}"
+
+        payload = {
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "stream": stream,
+        }
+
+        if tools:
+            payload["tools"] = tools
+            payload["tool_choice"] = "auto"
+
+        if stream:
+            # Streaming request using requests with stream=True
+            response = requests.post(url, json=payload, headers=headers, stream=True)
+            response.raise_for_status()
+
+            for line in response.iter_lines():
+                if line:
+                    line_str = line.decode("utf-8")
+                    if line_str.startswith("data: "):
+                        data_str = line_str[6:]
+                        if data_str.strip() == "[DONE]":
+                            break
+                        try:
+                            data = json.loads(data_str)
+                            delta = data["choices"][0]["delta"]
+                            if "content" in delta:
+                                yield delta["content"]
+                            elif "tool_calls" in delta:
+                                yield json.dumps({
+                                    "type": "tool_call",
+                                    "tool_calls": delta["tool_calls"],
+                                })
+                        except (json.JSONDecodeError, KeyError):
+                            continue
+        else:
+            response = requests.post(url, json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+            content = data["choices"][0]["message"]["content"]
+            yield content
 
     def generate_response(
         self,

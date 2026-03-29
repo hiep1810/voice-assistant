@@ -35,6 +35,10 @@ class LLMConfig:
     n_threads: int = 8  # CPU threads
     flash_attention: bool = True
 
+    # Remote server (optional) - if set, uses remote llama.cpp server instead of local
+    server_url: Optional[str] = None  # e.g., "http://localhost:8000"
+    server_api_key: Optional[str] = None  # API key if required
+
 
 @dataclass
 class TTSConfig:

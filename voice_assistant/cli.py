@@ -78,6 +78,10 @@ def run_cli(
         None, "--config", "-c",
         help="Path to configuration file",
     ),
+    server_url: Optional[str] = typer.Option(
+        None, "--server-url", "-s",
+        help="Remote llama.cpp server URL (e.g., http://localhost:8000)",
+    ),
 ) -> None:
     """
     Run voice assistant in CLI mode (no TUI).
@@ -101,11 +105,16 @@ def run_cli(
     if model:
         config.llm.model = model
 
+    if server_url:
+        config.llm.server_url = server_url
+        console.print(f"[bold]Using remote server:[/] {server_url}")
+    else:
+        console.print(f"[bold]Loading LLM:[/] {config.llm.model} (local)")
+
     # Initialize LLM
-    console.print(f"Loading LLM: {config.llm.model}...")
     llm = LlamaCppLLM(config.llm)
     llm.load_model()
-    console.print("[green]LLM loaded successfully[/]")
+    console.print("[green]LLM ready[/]")
 
     # Initialize tools
     tools = get_builtin_tools()
