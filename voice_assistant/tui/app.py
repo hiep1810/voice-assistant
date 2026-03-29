@@ -250,20 +250,14 @@ class VoiceAssistantTUI:
         while self._running:
             try:
                 # Non-blocking key read
-                import msvcrt if sys.platform == 'win32' else select
-
                 if sys.platform == 'win32':
+                    import msvcrt
                     if msvcrt.kbhit():
                         key = msvcrt.getch().decode('utf-8', errors='ignore').lower()
                         self._handle_key(key)
                 else:
-                    # Unix-like systems
-                    import select
-                    import sys
-                    import termios
-                    import tty
-
-                    # This is simplified - full implementation needs proper terminal handling
+                    # Unix-like systems - simplified implementation
+                    # Full implementation needs proper terminal handling with termios/tty
                     pass
 
             except Exception:

@@ -20,6 +20,7 @@ from voice_assistant.audio import AudioInput, DoubleBufferedPlayer
 from voice_assistant.asr import StreamingASRHandler, create_streaming_asr, ZipformerASR
 from voice_assistant.llm import LlamaCppLLM
 from voice_assistant.tools import get_builtin_tools
+from voice_assistant.tts import VieNeuTTS, DoubleBufferedTTSPlayer
 
 
 @dataclass
@@ -46,6 +47,11 @@ class PipelineConfig:
 
     # LLM
     llm_model: str = "qwen3-2b"
+
+    # TTS
+    tts_model: str = "vietneu-tts"
+    tts_backend: str = "lmdeploy"  # lmdeploy (fast) or standard
+    tts_speaker: Optional[str] = "neutrale"
 
 
 class VoicePipeline:
@@ -111,7 +117,7 @@ class VoicePipeline:
             chunk_size=self.config.audio_chunk_size,
         )
         self._audio_out = DoubleBufferedPlayer(
-            sample_rate=22050,  # TTS sample rate
+            sample_rate=24000,  # VieNeu-TTS sample rate
         )
 
     def _initialize_vad(self) -> None:
@@ -149,9 +155,25 @@ class VoicePipeline:
         # Lazy load - call load_model() when needed
 
     def _initialize_tts(self) -> None:
-        """Initialize Text-to-Speech (stub for now)."""
-        # TTS integration will use existing tts_test package
-        pass
+        """Initialize Text-to-Speech with VieNeu-TTS and LMDeploy backend."""
+        from voice_assistant.tts import VieNeuTTS, TTSConfig
+
+        tts_config = TTSConfig(
+            model=self.config.tts_model,
+            backend=self.config.tts_backend,
+            speaker=self.config.tts_speaker,
+            use_gpu=True,  # Always use GPU for real-time performance
+        )
+
+        self._tts = VieNeuTTS(tts_config)
+        # Pre-load model for faster first synthesis
+        # self._tts.load_model()  # Lazy load on first use
+
+        # Double-buffered player for seamless playback
+        self._tts_player = DoubleBufferedTTSPlayer(
+            tts=self._tts,
+            sample_rate=24000,  # VieNeu-TTS native sample rate
+        )
 
     def register_tool(self, name: str, description: str, parameters: Dict, handler: Callable) -> None:
         """Register a tool for LLM function calling."""
@@ -369,13 +391,36 @@ class VoicePipeline:
 
     def _tts_synthesis_thread(self, text: str) -> None:
         """Synthesize TTS audio (runs in worker thread)."""
-        # TTS integration - will use existing tts_test package
-        # For now, just update state
+        if not hasattr(self, '_tts') or self._tts is None:
+            self.state.state = PipelineState.IDLE
+            return
+
         self.state.state = PipelineState.SPEAKING
-        self.state.add_event(Event(
-            type=EventType.TTS_SEGMENT,
-            data={"text": text}
-        ))
+
+        try:
+            # Load model on first use
+            if not self._tts._is_loaded:
+                self._tts.load_model()
+
+            # Synthesize with streaming (sentence-level)
+            voice = self._tts.get_preset_voice(self.config.tts_speaker)
+
+            for segment in self._tts.synthesize_streaming(text, voice=voice):
+                # Queue audio for playback
+                self.state.add_event(Event(
+                    type=EventType.TTS_SEGMENT,
+                    data={"text": segment.text, "duration": segment.duration_s}
+                ))
+
+                # Play audio (double-buffered)
+                if hasattr(self, '_tts_player') and self._tts_player:
+                    self._tts_player._playback_queue.put(segment.audio)
+
+        except Exception as e:
+            self.state.add_event(Event(
+                type=EventType.ERROR,
+                data={"message": f"TTS error: {e}"}
+            ))
 
         # When complete:
         self.state.state = PipelineState.IDLE

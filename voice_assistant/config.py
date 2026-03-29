@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 
 @dataclass
@@ -39,9 +39,11 @@ class LLMConfig:
 @dataclass
 class TTSConfig:
     """Text-to-Speech configuration."""
-    model: str = "vietts"  # vietts, vietneu-tts
-    sample_rate: int = 22050
-    speaker: Optional[str] = None
+    model: str = "vietneu-tts"  # vietneu-tts (VieNeu-TTS with LMDeploy)
+    sample_rate: int = 24000  # VieNeu-TTS uses 24kHz
+    speaker: Optional[str] = None  # Voice preset (neutrale, hanhphuc, etc.)
+    backend: str = "lmdeploy"  # lmdeploy (fast) or standard
+    use_gpu: bool = True
 
 
 @dataclass
@@ -66,7 +68,7 @@ class MemoryConfig:
 class ToolConfig:
     """Tool calling configuration."""
     enabled: bool = True
-    allowed_tools: list[str] = field(default_factory=lambda: [
+    allowed_tools: List[str] = field(default_factory=lambda: [
         "get_current_time",
         "get_date",
         "set_timer",
