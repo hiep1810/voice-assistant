@@ -2,10 +2,72 @@
 
 A high-performance CLI tool for benchmarking the accuracy and speed (RTF) of leading Vietnamese Automatic Speech Recognition (ASR) and Text-to-Speech (TTS) models on your own hardware.
 
-**Three benchmarking suites in one project:**
+**Four components in one project:**
 - 🎤 **ASR (Speech-to-Text)** - Benchmark transcription models
 - 🔊 **TTS (Text-to-Speech)** - Benchmark voice synthesis models
 - 🎯 **VAD (Voice Activity Detection)** - Detect and segment speech
+- 🤖 **Voice Assistant Pipeline** - Full real-time voice interface (VAD→STT→LLM→TTS)
+
+---
+
+## 🚀 Voice Assistant (New!)
+
+**Full conversational voice assistant with:**
+- Real-time voice activity detection
+- Streaming speech-to-text (Vietnamese)
+- LLM responses (llama.cpp with GGUF models)
+- Double-buffered TTS for natural speech
+- Tool calling (time, date, timer, custom functions)
+- Vision support (screen/camera analysis with VLM)
+- Rich TUI with live transcription
+
+### Quick Start
+
+```bash
+# Install with all dependencies
+pip install -e ".[all]"
+
+# Launch TUI
+voice-assistant
+
+# Or CLI mode
+voice-assistant cli
+
+# List available models
+voice-assistant list-models
+```
+
+### Available Models
+
+| Model | Context | Tool Calling | Vietnamese |
+|-------|---------|--------------|------------|
+| qwen3-2b | 32K | ✅ | ✅ |
+| qwen3-0.6b | 32K | ✅ | ✅ |
+| lfm2-1.6b | 8K | ✅ | ❌ |
+
+### Vision Models (VLM)
+
+| Model | Context | Description |
+|-------|---------|-------------|
+| qwen3-vl-2b | 8K | Best quality |
+| smolvlm | 4K | Fastest |
+
+### Commands
+
+```bash
+# Full TUI interface
+voice-assistant [-m MODEL] [-c CONFIG]
+
+# CLI mode (text-only)
+voice-assistant cli [-m MODEL] [--no-tts]
+
+# List models
+voice-assistant list-models
+
+# Also available as: rcli
+```
+
+See [Voice Pipeline Guide](docs/voice-pipeline.md) for complete documentation.
 
 ---
 
@@ -255,6 +317,16 @@ During development, we found `SenseVoiceSmall` had limited language support for 
 - `tts_test/scripts/`: TTS inference scripts for each model.
 - `vad_test/`: Main package containing the VAD CLI, Registry, Environment Manager, and Streaming VAD.
 - `vad_test/scripts/`: VAD inference scripts for speech detection.
+- `voice_assistant/`: Full voice assistant pipeline with VAD→STT→LLM→TTS integration.
+  - `pipeline.py` - Main concurrent pipeline orchestrator
+  - `audio.py` - Audio I/O with double-buffered playback
+  - `state.py` - Shared state management with events
+  - `config.py` - Configuration classes
+  - `llm/` - LlamaCppLLM wrapper with tool calling
+  - `asr/` - Streaming ASR (Zipformer, Whisper)
+  - `tools/` - Tool registry with built-in tools
+  - `vision/` - VLM integration (screen/camera analysis)
+  - `tui/` - Rich-based terminal UI
 - `envs/`: (Generated) Directory where the model-specific virtual environments are stored.
   - `envs/tts/`: TTS-specific virtual environments.
   - `envs/vad/`: VAD-specific virtual environments.
