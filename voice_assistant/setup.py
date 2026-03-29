@@ -1,15 +1,16 @@
-"""Interactive setup wizard for voice assistant."""
+"""Interactive setup wizard for voice assistant components."""
 
 import sys
 import platform
 import subprocess
 import shutil
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.prompt import Prompt, Confirm
-from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
+from rich.markdown import Markdown
 
 console = Console()
 
@@ -19,7 +20,6 @@ class SystemInfo:
 
     @staticmethod
     def get_platform() -> str:
-        """Get platform name."""
         system = platform.system().lower()
         if system == "darwin":
             return "macos"
@@ -43,17 +43,14 @@ class SystemInfo:
 
     @staticmethod
     def has_cuda() -> bool:
-        """Check if NVIDIA CUDA is available."""
         try:
             import torch
             return torch.cuda.is_available()
         except ImportError:
-            # Try to detect CUDA via nvidia-smi
             return shutil.which("nvidia-smi") is not None
 
     @staticmethod
     def get_gpu_info() -> Optional[Dict[str, Any]]:
-        """Get GPU information."""
         try:
             import torch
             if torch.cuda.is_available():
@@ -66,7 +63,6 @@ class SystemInfo:
         except ImportError:
             pass
 
-        # Try macOS Metal
         if sys.platform == "darwin":
             try:
                 import torch
@@ -78,7 +74,6 @@ class SystemInfo:
             except ImportError:
                 pass
 
-        # Try nvidia-smi on Windows/Linux
         if shutil.which("nvidia-smi"):
             try:
                 result = subprocess.run(
@@ -101,7 +96,6 @@ class SystemInfo:
 
     @staticmethod
     def get_ram_gb() -> float:
-        """Get system RAM in GB."""
         try:
             if sys.platform == "win32":
                 import ctypes
@@ -135,7 +129,6 @@ class SystemInfo:
                 if result.returncode == 0:
                     return int(result.stdout.strip()) / (1024**3)
             else:
-                # Linux
                 with open("/proc/meminfo", "r") as f:
                     for line in f:
                         if line.startswith("MemTotal:"):
@@ -147,8 +140,100 @@ class SystemInfo:
 
     @staticmethod
     def is_using_uv() -> bool:
-        """Check if running under uv."""
         return "UV" in str(subprocess.__file__) or shutil.which("uv") is not None
+
+
+class ComponentSetup:
+    """Component installation manager."""
+
+    VAD = {
+        "name": "VAD (Voice Activity Detection)",
+        "description": "Detects speech segments and filters silence",
+        "packages": ["silero-vad>=0.4.0"],
+        "required_for": ["Full voice assistant", "Real-time microphone input"],
+        "optional": False,
+        "recommended": True,
+    }
+
+    ASR = {
+        "name": "ASR (Speech-to-Text)",
+        "description": "Transcribes speech to text (Vietnamese)",
+        "packages": ["sherpa-onnx>=1.10.0"],
+        "required_for": ["Voice transcription", "Streaming ASR"],
+        "optional": False,
+        "recommended": True,
+    }
+
+    LLM_LOCAL = {
+        "name": "LLM (Local)",
+        "description": "Run language model locally (llama.cpp)",
+        "packages": ["llama-cpp-python>=0.2.50", "huggingface_hub>=0.20.0"],
+        "required_for": ["Local AI responses", "No external server needed"],
+        "optional": True,
+        "recommended": True,
+        "alternatives": {
+            "server": {
+                "name": "LLM (Remote Server)",
+                "description": "Connect to external llama.cpp server",
+                "packages": ["requests"],
+                "note": "Requires llama.cpp server running separately",
+            }
+        }
+    }
+
+    LLM_SERVER = {
+        "name": "LLM (Remote Server)",
+        "description": "Connect to external llama.cpp server",
+        "packages": ["requests>=2.28.0"],
+        "required_for": ["Remote LLM inference"],
+        "optional": True,
+        "recommended": False,
+    }
+
+    TTS = {
+        "name": "TTS (Text-to-Speech)",
+        "description": "Synthesize speech with Vietnamese voices",
+        "packages": ["vieneu>=0.1.0"],
+        "required_for": ["Voice output", "Audio responses"],
+        "optional": True,
+        "recommended": True,
+    }
+
+    AUDIO = {
+        "name": "Audio I/O",
+        "description": "Microphone input and speaker output",
+        "packages": ["pyaudio>=0.2.13", "sounddevice>=0.4.6", "numpy>=1.20.0"],
+        "required_for": ["Microphone input", "Speaker output"],
+        "optional": False,
+        "recommended": True,
+    }
+
+    TUI = {
+        "name": "TUI (Terminal UI)",
+        "description": "Rich terminal interface with live display",
+        "packages": ["rich>=13.0", "typer>=0.9"],
+        "required_for": ["Live transcription display", "Interactive interface"],
+        "optional": True,
+        "recommended": True,
+    }
+
+    VISION = {
+        "name": "Vision (VLM)",
+        "description": "Image and screen analysis",
+        "packages": ["opencv-python>=4.9.0", "pillow>=10.0.0"],
+        "required_for": ["Screen capture", "Camera analysis"],
+        "optional": True,
+        "recommended": False,
+    }
+
+    ALL = {
+        "name": "All Components",
+        "description": "Install everything for full functionality",
+        "packages": [".[all]"],
+        "required_for": ["Complete voice assistant experience"],
+        "optional": False,
+        "recommended": True,
+    }
 
 
 class SetupWizard:
@@ -161,7 +246,6 @@ class SetupWizard:
         self.ram_gb = self.sys_info.get_ram_gb()
 
     def detect_environment(self) -> Dict[str, Any]:
-        """Detect system environment and recommend setup."""
         info = {
             "platform": self.platform,
             "python_version": self.sys_info.get_python_version(),
@@ -170,156 +254,240 @@ class SetupWizard:
             "using_uv": self.sys_info.is_using_uv(),
         }
 
-        # Determine recommended setup
+        # Determine recommendations
         if info["gpu"]:
             gpu_type = info["gpu"]["type"]
             if gpu_type == "cuda":
                 info["recommended_backend"] = "cuda"
-                info["recommended_llm"] = "qwen3-2b"
-                info["gpu_memory"] = info["gpu"].get("memory_gb", 0)
+                info["llm_gpu_layers"] = 35
             elif gpu_type == "metal":
                 info["recommended_backend"] = "metal"
-                info["recommended_llm"] = "qwen3-2b"
-        else:
-            # CPU only
-            if info["ram_gb"] >= 16:
-                info["recommended_llm"] = "qwen3-2b"
+                info["llm_gpu_layers"] = 35
             else:
-                info["recommended_llm"] = "qwen3-0.6b"
+                info["recommended_backend"] = "cpu"
+                info["llm_gpu_layers"] = 0
+        else:
             info["recommended_backend"] = "cpu"
+            info["llm_gpu_layers"] = 0
+
+        # LLM recommendation based on RAM
+        if info["ram_gb"] >= 16:
+            info["recommended_llm"] = "qwen3-2b"
+        elif info["ram_gb"] >= 8:
+            info["recommended_llm"] = "qwen3-0.6b"
+        else:
+            info["recommended_llm"] = "remote-server"
 
         return info
 
     def print_system_info(self, info: Dict[str, Any]) -> None:
-        """Print detected system information."""
         console.print(Panel.fit(
-            "[bold]System Detection Results[/bold]",
-            border_style="blue",
+            "[bold]Your System[/bold]",
+            border_style="cyan",
         ))
 
         table = Table(show_header=False, box=None)
         table.add_column("Property", style="cyan")
         table.add_column("Value", style="green")
 
-        table.add_row("Platform", f"{info['platform'].capitalize()} ({platform.machine()})")
+        platform_display = f"{info['platform'].capitalize()} ({platform.machine()})"
+        table.add_row("Platform", platform_display)
         table.add_row("Python", info["python_version"])
         table.add_row("RAM", f"{info['ram_gb']:.1f} GB")
 
         if info["gpu"]:
-            table.add_row("GPU", f"[green]{info['gpu']['name']}[/green]")
+            gpu_name = info["gpu"]["name"]
+            table.add_row("GPU", f"[green]{gpu_name}[/green]")
             if info["gpu"]["type"] == "cuda":
-                table.add_row("CUDA", f"[green]Yes ({info['gpu'].get('memory_gb', 0):.1f} GB VRAM)[/green]")
+                vram = info["gpu"].get("memory_gb", 0)
+                table.add_row("CUDA", f"[green]Yes ({vram:.1f} GB VRAM)[/green]")
+                table.add_row("Recommendation", f"[green]Use CUDA for LLM/TTS[/green]")
             elif info["gpu"]["type"] == "metal":
                 table.add_row("Metal", "[green]Yes (Apple Silicon)[/green]")
+                table.add_row("Recommendation", f"[green]Use Metal for LLM/TTS[/green]")
         else:
-            table.add_row("GPU", "[yellow]Not detected (CPU only mode)[/yellow]")
+            table.add_row("GPU", "[yellow]Not detected (CPU mode)[/yellow]")
+            if info["ram_gb"] >= 16:
+                table.add_row("Recommendation", "[green]CPU inference possible with smaller models[/green]")
+            else:
+                table.add_row("Recommendation", "[yellow]Consider remote llama.cpp server[/yellow]")
 
         table.add_row("Package Manager", "[green]uv[/green]" if info["using_uv"] else "[yellow]pip[/yellow]")
 
         console.print(table)
         console.print("")
 
-    def get_installation_options(self, info: Dict[str, Any]) -> List[Dict[str, str]]:
-        """Get installation options based on system."""
-        options = []
-
-        # Option 1: Recommended
-        if info["gpu"] and info["gpu"]["type"] == "cuda":
-            options.append({
-                "id": "nvidia-full",
-                "name": "NVIDIA GPU (Recommended)",
-                "description": f"Full voice assistant with CUDA acceleration ({info['gpu']['name']})",
-                "packages": ".[all]",
-                "llm": info["recommended_llm"],
-                "priority": 1,
-            })
-        elif info["gpu"] and info["gpu"]["type"] == "metal":
-            options.append({
-                "id": "macos-full",
-                "name": "Apple Silicon (Recommended)",
-                "description": "Full voice assistant with Metal acceleration",
-                "packages": ".[all]",
-                "llm": info["recommended_llm"],
-                "priority": 1,
-            })
-
-        # Option 2: CPU only
-        options.append({
-            "id": "cpu-only",
-            "name": "CPU Only",
-            "description": f"Lightweight setup without GPU acceleration (uses {info['recommended_llm']})",
-            "packages": "llama-cpp-python huggingface_hub",
-            "llm": info["recommended_llm"],
-            "priority": 2,
-        })
-
-        # Option 3: Server mode
-        options.append({
-            "id": "server-mode",
-            "name": "Remote Server Mode",
-            "description": "Connect to external llama.cpp server (no local LLM)",
-            "packages": "",
-            "llm": "remote",
-            "priority": 3,
-        })
-
-        # Option 4: Minimal
-        options.append({
-            "id": "minimal",
-            "name": "Minimal (CLI only)",
-            "description": "Text-only interface, no audio processing",
-            "packages": "typer rich",
-            "llm": "none",
-            "priority": 4,
-        })
-
-        return sorted(options, key=lambda x: x["priority"])
-
-    def show_options(self, options: List[Dict[str, str]]) -> Dict[str, str]:
-        """Show installation options and get user choice."""
+    def show_component_menu(self) -> List[str]:
+        """Show component selection menu."""
         console.print(Panel.fit(
-            "[bold]Installation Options[/bold]",
+            "[bold]Select Components to Install[/bold]\n\n"
+            "Choose which parts of the voice assistant to set up.",
             border_style="green",
         ))
         console.print("")
 
-        table = Table(title="Select Setup Type")
-        table.add_column("#", style="cyan", width=3)
-        table.add_column("Name", style="green bold")
-        table.add_column("Description", style="white")
-        table.add_column("Packages", style="yellow")
+        # Preset configurations
+        presets = {
+            "full": {
+                "name": "Full Installation (Recommended)",
+                "components": ["vad", "asr", "llm_local", "tts", "audio", "tui"],
+                "description": "Everything for complete voice assistant",
+            },
+            "minimal": {
+                "name": "Minimal (CLI text-only)",
+                "components": ["llm_local", "tui"],
+                "description": "Basic chat without audio",
+            },
+            "server": {
+                "name": "Server Mode",
+                "components": ["vad", "asr", "llm_server", "tts", "audio", "tui"],
+                "description": "Connect to remote llama.cpp server",
+            },
+            "custom": {
+                "name": "Custom Selection",
+                "components": [],
+                "description": "Pick individual components",
+            },
+        }
 
-        for i, opt in enumerate(options, 1):
-            table.add_row(
-                str(i),
-                opt["name"],
-                opt["description"],
-                opt["packages"] or "N/A",
-            )
+        # Show presets table
+        table = Table(title="Installation Presets")
+        table.add_column("#", style="cyan", width=2)
+        table.add_column("Name", style="green bold")
+        table.add_column("Components", style="white")
+        table.add_column("Best For", style="yellow")
+
+        table.add_row(
+            "1", "Full",
+            "VAD + ASR + LLM + TTS + Audio",
+            "Complete voice assistant experience",
+        )
+        table.add_row(
+            "2", "Minimal",
+            "LLM + TUI only",
+            "Quick testing, text-only chat",
+        )
+        table.add_row(
+            "3", "Server Mode",
+            "All + Remote LLM",
+            "Systems without local LLM support",
+        )
+        table.add_row(
+            "4", "Custom",
+            "Choose individually",
+            "Advanced users",
+        )
 
         console.print(table)
         console.print("")
 
-        # Get user choice
-        while True:
-            choice = Prompt.ask(
-                "Select option",
-                choices=[str(i) for i in range(1, len(options) + 1)],
-                default="1",
-            )
-            return options[int(choice) - 1]
+        choice = Prompt.ask(
+            "Select preset",
+            choices=["1", "2", "3", "4"],
+            default="1"
+        )
 
-    def install_packages(self, option: Dict[str, str], using_uv: bool) -> bool:
-        """Install selected packages."""
-        packages = option["packages"]
+        if choice == "4":
+            # Custom selection
+            return self._custom_component_selection()
+        elif choice == "1":
+            return presets["full"]["components"]
+        elif choice == "2":
+            return presets["minimal"]["components"]
+        elif choice == "3":
+            return presets["server"]["components"]
+
+        return presets["full"]["components"]
+
+    def _custom_component_selection(self) -> List[str]:
+        """Let user pick individual components."""
+        console.print("")
+        console.print("[bold]Select components (comma-separated numbers):[/bold]")
+        console.print("")
+
+        components = []
+        idx = 1
+
+        table = Table()
+        table.add_column("#", style="cyan")
+        table.add_column("Component", style="green")
+        table.add_column("Description", style="white")
+        table.add_column("Required", style="yellow")
+
+        component_map = {
+            "vad": ComponentSetup.VAD,
+            "asr": ComponentSetup.ASR,
+            "llm_local": ComponentSetup.LLM_LOCAL,
+            "llm_server": ComponentSetup.LLM_SERVER,
+            "tts": ComponentSetup.TTS,
+            "audio": ComponentSetup.AUDIO,
+            "tui": ComponentSetup.TUI,
+            "vision": ComponentSetup.VISION,
+        }
+
+        for key, comp in component_map.items():
+            required = "[green]Yes[/green]" if not comp.get("optional", False) else "[yellow]No[/yellow]"
+            table.add_row(str(idx), comp["name"], comp["description"], required)
+            components.append(key)
+            idx += 1
+
+        console.print(table)
+        console.print("")
+
+        # Auto-select recommended
+        default_selection = "1,2,3,5,6,7"  # vad, asr, llm_local, tts, audio, tui
+        selection = Prompt.ask(
+            "Enter component numbers",
+            default=default_selection
+        )
+
+        selected = []
+        for num in selection.split(","):
+            num = num.strip()
+            if num.isdigit() and 1 <= int(num) <= len(components):
+                selected.append(components[int(num) - 1])
+
+        return selected if selected else ["vad", "asr", "llm_local", "tui"]
+
+    def get_packages_to_install(self, selected_components: List[str]) -> Tuple[List[str], Dict[str, str]]:
+        """Get list of packages to install based on selected components."""
+        packages = []
+        component_status = {}
+
+        component_map = {
+            "vad": ComponentSetup.VAD,
+            "asr": ComponentSetup.ASR,
+            "llm_local": ComponentSetup.LLM_LOCAL,
+            "llm_server": ComponentSetup.LLM_SERVER,
+            "tts": ComponentSetup.TTS,
+            "audio": ComponentSetup.AUDIO,
+            "tui": ComponentSetup.TUI,
+            "vision": ComponentSetup.VISION,
+        }
+
+        for comp_key in selected_components:
+            if comp_key in component_map:
+                comp = component_map[comp_key]
+                packages.extend(comp["packages"])
+                component_status[comp["name"]] = "pending"
+
+        # Handle special case: .[all]
+        if ".[all]" in packages:
+            return [".[all]"], {"All Components": "pending"}
+
+        return packages, component_status
+
+    def install_packages(self, packages: List[str], using_uv: bool) -> Dict[str, bool]:
+        """Install packages and return success status per package."""
+        results = {}
 
         if not packages:
-            console.print("[green]No packages to install (server mode)[/green]")
-            return True
+            console.print("[yellow]No packages to install[/yellow]")
+            return results
 
         console.print("")
         console.print(Panel.fit(
-            f"[bold]Installing:[/] {packages}",
+            f"[bold]Installing packages:[/bold]\n{', '.join(packages)}",
             border_style="yellow",
         ))
         console.print("")
@@ -328,16 +496,21 @@ class SetupWizard:
             with Progress(
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
                 console=console,
             ) as progress:
-                task = progress.add_task("Installing packages...", total=None)
+                task = progress.add_task("Installing...", total=len(packages))
 
                 if using_uv:
                     cmd = ["uv", "pip", "install"]
                 else:
                     cmd = [sys.executable, "-m", "pip", "install"]
 
-                cmd.extend(packages.split())
+                # Install all packages at once
+                cmd.extend(packages)
+
+                process = progress.add_task(f"Running: {' '.join(cmd[:3])}...", total=None)
 
                 result = subprocess.run(
                     cmd,
@@ -346,23 +519,55 @@ class SetupWizard:
                     timeout=300,
                 )
 
-                progress.update(task, completed=True)
+                progress.update(task, completed=len(packages))
 
                 if result.returncode == 0:
-                    console.print("[green]Packages installed successfully![/green]")
-                    return True
+                    console.print("[green]All packages installed successfully![/green]")
+                    for pkg in packages:
+                        results[pkg] = True
+
+                    # Show any warnings
+                    if "warning" in result.stderr.lower():
+                        console.print("[yellow]Warnings:[/yellow]")
+                        for line in result.stderr.split("\n"):
+                            if "warning" in line.lower():
+                                console.print(f"  {line}")
                 else:
-                    console.print(f"[red]Installation failed:[/red] {result.stderr}")
-                    return False
+                    console.print(f"[red]Installation failed:[/red]")
+                    console.print(result.stderr)
+                    for pkg in packages:
+                        results[pkg] = False
 
         except subprocess.TimeoutExpired:
-            console.print("[red]Installation timed out[/red]")
-            return False
+            console.print("[red]Installation timed out (5 min limit)[/red]")
+            for pkg in packages:
+                results[pkg] = False
         except Exception as e:
             console.print(f"[red]Error: {e}[/red]")
-            return False
+            for pkg in packages:
+                results[pkg] = False
 
-    def show_next_steps(self, option: Dict[str, str]) -> None:
+        return results
+
+    def show_component_status(self, status: Dict[str, bool]) -> None:
+        """Show installation status per component."""
+        console.print("")
+        console.print(Panel.fit(
+            "[bold]Installation Status[/bold]",
+            border_style="green",
+        ))
+
+        table = Table(show_header=False, box=None)
+        table.add_column("Status", style="cyan", width=3)
+        table.add_column("Component", style="white")
+
+        for pkg, success in status.items():
+            icon = "[green]✓[/green]" if success else "[red]✗[/red]"
+            table.add_row(icon, pkg)
+
+        console.print(table)
+
+    def show_next_steps(self, selected_components: List[str], install_success: Dict[str, bool]) -> None:
         """Show next steps after installation."""
         console.print("")
         console.print(Panel.fit(
@@ -370,81 +575,142 @@ class SetupWizard:
             border_style="blue",
         ))
 
-        if option["id"] == "server-mode":
-            console.print("""
-[bold]To use with a remote llama.cpp server:[/bold]
+        steps = []
 
-1. Start llama.cpp server:
+        # Check what was installed
+        has_llm_local = "llm_local" in selected_components and install_success.get("llama-cpp-python>=0.2.50", False)
+        has_llm_server = "llm_server" in selected_components
+        has_full = "vad" in selected_components and "asr" in selected_components
+
+        if has_llm_local:
+            steps.append("""
+[bold green]1. Run Voice Assistant (Local LLM)[/bold green]
+
+   [cyan]uv run python -m voice_assistant cli[/cyan]
+
+   The LLM model will be downloaded automatically on first use.
+   Recommended model: qwen3-2b (requires ~4GB disk)
+""")
+        elif has_llm_server:
+            steps.append("""
+[bold green]1. Start llama.cpp Server[/bold green]
+
+   Download llama.cpp from: https://github.com/ggerganov/llama.cpp/releases
+
    [cyan]llama-server.exe -m qwen3-2b-q4_k_m.gguf --port 8000[/cyan]
 
-2. Run voice assistant:
+[bold green]2. Connect Voice Assistant[/bold green]
+
    [cyan]uv run python -m voice_assistant cli --server-url http://localhost:8000[/cyan]
 """)
-        elif option["id"] == "minimal":
-            console.print("""
-[bold]Run the CLI (text-only mode):[/bold]
 
-   [cyan]uv run python -m voice_assistant cli[/cyan]
+        if has_full:
+            steps.append("""
+[bold green]Full Voice Assistant (with audio)[/bold green]
 
-Note: Audio features (microphone, TTS) are not available in minimal mode.
-""")
-        else:
-            llm = option.get("llm", "qwen3-2b")
-            console.print(f"""
-[bold]Run voice assistant:[/bold]
-
-1. CLI mode (text-only):
-   [cyan]uv run python -m voice_assistant cli[/cyan]
-
-2. TUI mode (full interface with live display):
    [cyan]uv run python -m voice_assistant run[/cyan]
 
-[bold]Model:[/] {llm} (will be downloaded on first use)
+   This starts the complete pipeline:
+   - VAD: Voice activity detection
+   - ASR: Speech-to-text transcription
+   - LLM: AI responses
+   - TTS: Voice output
 """)
+
+        steps.append("""
+[bold]Available Commands[/bold]
+
+  [cyan]uv run python -m voice_assistant cli[/cyan]      - Text-only chat
+  [cyan]uv run python -m voice_assistant run[/cyan]      - Full TUI interface
+  [cyan]uv run python -m voice_assistant list-models[/cyan] - Show available models
+""")
+
+        for i, step in enumerate(steps, 1):
+            console.print(step)
+            if i < len(steps):
+                console.print("---")
+                console.print("")
+
+    def generate_config(self, info: Dict[str, Any], components: List[str]) -> None:
+        """Generate a recommended config file."""
+        console.print("")
+        console.print("[bold]Generating recommended config...[/bold]")
+
+        import json
+
+        config = {
+            "llm": {
+                "model": info["recommended_llm"] if info["recommended_llm"] != "remote-server" else "qwen3-2b",
+            },
+            "tts": {
+                "model": "vietneu-tts",
+                "use_gpu": info["gpu"] is not None,
+            },
+        }
+
+        if info["gpu"]:
+            config["llm"]["n_gpu_layers"] = info.get("llm_gpu_layers", 35)
+
+        if "llm_server" in components and info["gpu"] is None:
+            config["llm"]["server_url"] = "http://localhost:8000"
+
+        config_path = "voice_config.json"
+        with open(config_path, "w") as f:
+            json.dump(config, f, indent=2)
+
+        console.print(f"[green]Config saved to:[/green] {config_path}")
+        console.print("")
+        console.print("[dim]Load config with: -c voice_config.json[/dim]")
 
     def run(self) -> int:
         """Run the setup wizard."""
         console.print(Panel.fit(
             "[bold cyan]Voice Assistant Setup Wizard[/bold cyan]\n\n"
-            "This will help you install and configure the voice assistant\n"
-            "with optimal settings for your system.",
+            "Step-by-step setup for VAD, ASR, LLM, and TTS components\n"
+            "Optimized for your hardware configuration.",
             border_style="cyan",
         ))
         console.print("")
 
         # Detect system
-        console.print("[bold]Detecting system configuration...[/bold]")
+        console.print("[bold]Detecting system...[/bold]")
         info = self.detect_environment()
         self.print_system_info(info)
 
-        # Show options
-        options = self.get_installation_options(info)
-        selected = self.show_options(options)
+        # Select components
+        selected = self.show_component_menu()
+        console.print(f"\nSelected: [green]{', '.join(selected)}[/green]\n")
 
-        console.print("")
-        console.print(f"You selected: [green]{selected['name']}[/green]")
-        console.print("")
-
-        # Confirm installation
         if not Confirm.ask("Continue with installation?", default=True):
             console.print("[yellow]Setup cancelled.[/yellow]")
             return 1
 
-        # Install packages
-        success = self.install_packages(selected, info["using_uv"])
+        # Get packages
+        packages, component_status = self.get_packages_to_install(selected)
 
-        if not success:
-            console.print("[red]Installation failed. Please check the error messages above.[/red]")
-            return 1
+        # Install
+        install_results = self.install_packages(packages, info["using_uv"])
+        self.show_component_status(install_results)
+
+        # Generate config
+        self.generate_config(info, selected)
 
         # Show next steps
-        self.show_next_steps(selected)
+        self.show_next_steps(selected, install_results)
 
-        return 0
+        # Summary
+        all_success = all(install_results.values()) if install_results else False
+        if all_success:
+            console.print("\n[bold green]Setup completed successfully![/bold green]")
+        else:
+            console.print("\n[bold yellow]Setup completed with some errors.[/bold yellow]")
+            console.print("[dim]You can re-run setup or install missing packages manually.[/dim]")
+
+        return 0 if all_success else 1
 
 
 def main():
-    """Main entry point for setup wizard."""
+    """Main entry point."""
     wizard = SetupWizard()
     sys.exit(wizard.run())
 
