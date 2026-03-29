@@ -85,10 +85,19 @@ class LlamaCppLLM:
             else:
                 print(f"Warning: Server returned status {response.status_code}")
         except requests.exceptions.RequestException as e:
-            print(f"Warning: Could not connect to server: {e}")
-            print("Falling back to local model loading...")
-            self.config.server_url = None
-            self.load_model()
+            raise RuntimeError(
+                f"Could not connect to llama.cpp server at {self.config.server_url}\n"
+                f"Error: {e}\n\n"
+                f"Please ensure:\n"
+                f"1. The llama.cpp server is running\n"
+                f"2. The URL is correct (e.g., http://localhost:8000)\n"
+                f"3. No firewall is blocking the connection\n\n"
+                f"To start a local llama.cpp server:\n"
+                f"  llama-server -m your-model.gguf --host 0.0.0.0 --port 8000\n"
+                f"\n"
+                f"Or install llama-cpp-python for local inference:\n"
+                f"  uv pip install llama-cpp-python"
+            )
 
     def _download_model(self) -> str:
         """Download model from HuggingFace."""

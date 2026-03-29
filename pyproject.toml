@@ -6,6 +6,8 @@ requires-python = ">=3.10"
 dependencies = [
     "typer>=0.9",
     "rich>=13.0",
+    "numpy>=1.20.0",
+    "requests>=2.28.0",
 ]
 
 [project.optional-dependencies]
@@ -14,6 +16,9 @@ voice = [
     "pyaudio>=0.2.13",
     "sounddevice>=0.4.6",
     "huggingface_hub>=0.20.0",
+    "silero-vad>=0.4.0",
+    "sherpa-onnx>=1.10.0",
+    "vieneu>=0.1.0",
 ]
 tui = [
     "textual>=0.50.0",
