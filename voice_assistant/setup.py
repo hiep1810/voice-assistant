@@ -155,92 +155,162 @@ ASR_MODELS = {
         "recommended": True,
         "language": "Vietnamese",
         "streaming": True,
+        "pros": ["True streaming (real-time)", "Optimized for Vietnamese", "Low latency (~100ms)", "Works on CPU"],
+        "cons": ["Vietnamese only"],
+        "best_for": "Voice assistant with live transcription",
+        "disk_space": "~500MB",
+        "ram_usage": "~1GB",
+        "rtf": "0.1-0.2 (5-10x real-time)",
     },
     "whisper": {
         "name": "Whisper (OpenAI)",
-        "description": "Multilingual ASR, good accuracy, slower",
-        "packages": ["openai-whisper", "torch"],
+        "description": "Multilingual ASR with high accuracy",
+        "packages": ["openai-whisper", "torch", "torchaudio"],
         "recommended": False,
-        "language": "Multilingual",
+        "language": "Multilingual (incl. Vietnamese)",
         "streaming": False,
+        "pros": ["Excellent accuracy", "99 languages supported", "Robust to noise"],
+        "cons": ["Slower than Zipformer", "Not true streaming", "Requires GPU for good speed"],
+        "best_for": "Batch transcription, multilingual support",
+        "disk_space": "~2GB (tiny) to ~5GB (large)",
+        "ram_usage": "~2-4GB",
+        "rtf": "0.3-1.0 (varies by model size)",
     },
     "parakeet": {
         "name": "Parakeet (NVIDIA)",
-        "description": "High accuracy Vietnamese ASR from NVIDIA",
-        "packages": ["nemo-toolkit", "cython"],
+        "description": "High accuracy Vietnamese ASR from NVIDIA NeMo",
+        "packages": ["nemo-toolkit>=1.20.0", "cython", "numpy"],
         "recommended": False,
         "language": "Vietnamese",
         "streaming": False,
-        "note": "Requires complex setup, isolated environment",
+        "pros": ["State-of-the-art accuracy", "NVIDIA optimized", "Good for long-form"],
+        "cons": ["Complex dependencies", "Heavy installation (~3GB)", "Requires CUDA"],
+        "best_for": "Production accuracy, NVIDIA GPU systems",
+        "disk_space": "~3GB",
+        "ram_usage": "~4GB",
+        "rtf": "0.2-0.5 (GPU required)",
+        "note": "Requires isolated environment, complex setup",
     },
 }
 
 LLM_MODELS = {
     "qwen3-2b": {
         "name": "Qwen3 2B (GGUF)",
-        "description": "Best balance of speed and quality, Vietnamese support",
+        "description": "Best balance of speed, quality, and Vietnamese support",
         "packages": ["llama-cpp-python>=0.2.50", "huggingface_hub>=0.20.0"],
         "recommended": True,
         "ram_required_gb": 8,
+        "disk_space_gb": 4,
         "context": 32768,
         "vietnamese": True,
+        "tool_calling": True,
+        "pros": ["Excellent Vietnamese", "32K context", "Fast with GPU", "Tool calling support"],
+        "cons": ["Requires 4GB disk", "8GB+ RAM recommended"],
+        "best_for": "General voice assistant, Vietnamese conversations",
+        "gpu_layers_recommended": 35,
+        "tokens_per_sec_gpu": "~50",
+        "tokens_per_sec_cpu": "~5",
     },
     "qwen3-0.6b": {
         "name": "Qwen3 0.6B (GGUF)",
-        "description": "Fast, lightweight, good for testing",
+        "description": "Lightweight, fast, good for testing and low-end systems",
         "packages": ["llama-cpp-python>=0.2.50", "huggingface_hub>=0.20.0"],
         "recommended": False,
         "ram_required_gb": 4,
+        "disk_space_gb": 1,
         "context": 32768,
         "vietnamese": True,
+        "tool_calling": True,
+        "pros": ["Very fast", "Low RAM usage", "Small disk footprint", "Vietnamese support"],
+        "cons": ["Less capable reasoning", "Shorter responses"],
+        "best_for": "Low-end systems, quick testing, simple Q&A",
+        "gpu_layers_recommended": 20,
+        "tokens_per_sec_gpu": "~100",
+        "tokens_per_sec_cpu": "~15",
     },
     "lfm2-1.6b": {
         "name": "Liquid LFM2 1.6B (GGUF)",
-        "description": "Good reasoning, no Vietnamese support",
+        "description": "Strong reasoning, optimized for English",
         "packages": ["llama-cpp-python>=0.2.50", "huggingface_hub>=0.20.0"],
         "recommended": False,
         "ram_required_gb": 6,
+        "disk_space_gb": 2,
         "context": 8192,
         "vietnamese": False,
+        "tool_calling": True,
+        "pros": ["Better reasoning than Qwen", "Efficient architecture", "Good English"],
+        "cons": ["No Vietnamese support", "Smaller context (8K)"],
+        "best_for": "English conversations, logic tasks",
+        "gpu_layers_recommended": 28,
+        "tokens_per_sec_gpu": "~60",
+        "tokens_per_sec_cpu": "~8",
     },
     "remote": {
         "name": "Remote llama.cpp Server",
-        "description": "Connect to external server (no local LLM)",
+        "description": "Connect to external server - no local resources needed",
         "packages": ["requests>=2.28.0"],
         "recommended": False,
         "ram_required_gb": 0,
-        "note": "Requires llama.cpp server running separately",
+        "disk_space_gb": 0,
+        "context": "Depends on server",
+        "vietnamese": "Depends on server model",
+        "pros": ["Zero local resources", "Works on any device", "Server handles heavy lifting"],
+        "cons": ["Requires separate server setup", "Network dependency", "Latency from HTTP"],
+        "best_for": "Low-RAM systems, shared LLM across devices",
+        "note": "Run server: llama-server.exe -m model.gguf --port 8000",
     },
 }
 
 TTS_MODELS = {
     "vietneu-tts": {
         "name": "VieNeu-TTS (LMDeploy)",
-        "description": "Fast Vietnamese TTS with 6 voice presets, 5x real-time",
+        "description": "Fast Vietnamese TTS with LMDeploy acceleration and 6 voice presets",
         "packages": ["vieneu>=0.1.0"],
         "recommended": True,
         "language": "Vietnamese",
         "voices": 6,
-        "realtime_factor": 0.2,
+        "voice_names": ["neutrale", "hanhphuc", "leloi", "nguyentruothanh", "chihanh", "khanhlinh"],
+        "backend": "lmdeploy",
+        "pros": ["5x real-time (RTF=0.20)", "6 natural Vietnamese voices", "Voice cloning support", "LMDeploy acceleration"],
+        "cons": ["Requires GPU for best speed", "Vietnamese only"],
+        "best_for": "Natural Vietnamese speech, voice variety",
+        "disk_space": "~1GB",
+        "ram_usage": "~2GB",
+        "rtf_gpu": "0.20 (5x real-time)",
+        "rtf_cpu": "1.5 (slower than real-time)",
     },
     "vietts": {
         "name": "VietTTS (Facebook MMS)",
-        "description": "Lightweight Vietnamese TTS from Facebook MMS, 49x real-time",
-        "packages": ["transformers>=4.30.0", "torch", "torchaudio"],
+        "description": "Lightweight Vietnamese TTS from Facebook MMS - fastest option",
+        "packages": ["transformers>=4.30.0", "torch", "torchaudio", "soundfile"],
         "recommended": False,
         "language": "Vietnamese",
         "voices": 1,
-        "realtime_factor": 0.02,
+        "backend": "pytorch",
+        "pros": ["49x real-time (RTF=0.02)", "Very lightweight", "Works on CPU", "Simple setup"],
+        "cons": ["Single voice", "Less natural than VieNeu"],
+        "best_for": "Fast responses, low-resource systems",
+        "disk_space": "~500MB",
+        "ram_usage": "~1GB",
+        "rtf_gpu": "0.02 (49x real-time)",
+        "rtf_cpu": "0.1 (10x real-time)",
     },
     "xtts-v2": {
         "name": "XTTS-v2 (Coqui)",
-        "description": "High quality with voice cloning, slower",
-        "packages": ["TTS>=0.20.0"],
+        "description": "High-quality multilingual TTS with voice cloning",
+        "packages": ["TTS>=0.20.0", "torch", "pandas"],
         "recommended": False,
-        "language": "Multilingual",
-        "voices": "Cloning",
-        "realtime_factor": 0.5,
-        "note": "Vietnamese via fallback to MMS",
+        "language": "Multilingual (Vietnamese via fallback)",
+        "voices": "Cloning + presets",
+        "backend": "pytorch",
+        "pros": ["Voice cloning (3-5s sample)", "High quality", "17 languages"],
+        "cons": ["Slower (RTF=0.5)", "Vietnamese uses MMS fallback", "Heavy dependencies"],
+        "best_for": "Voice cloning, multilingual support",
+        "disk_space": "~2GB",
+        "ram_usage": "~3GB",
+        "rtf_gpu": "0.5 (2x real-time)",
+        "rtf_cpu": "2.0 (slower than real-time)",
+        "note": "Vietnamese uses MMS fallback, not native XTTS",
     },
 }
 
@@ -377,6 +447,80 @@ class SetupWizard:
         console.print(table)
         console.print("")
 
+    def _show_hardware_recommendations(self, info: Dict[str, Any]) -> None:
+        """Show hardware-based recommendations."""
+        console.print(Panel.fit(
+            "[bold]Recommendations for Your System[/bold]",
+            border_style="green",
+            title="Hardware Analysis",
+        ))
+
+        ram_gb = info.get("ram_gb", 0)
+        gpu = info.get("gpu")
+        gpu_type = gpu.get("type") if gpu else None
+        vram = gpu.get("memory_gb", 0) if gpu else 0
+
+        recommendations = []
+
+        # LLM recommendation
+        if gpu:
+            if gpu_type == "cuda" and vram >= 8:
+                recommendations.append("[green]LLM:[/green] Qwen3 2B with full GPU offload (35 layers)")
+            elif gpu_type == "cuda" and vram >= 4:
+                recommendations.append("[green]LLM:[/green] Qwen3 2B with partial GPU offload (20-25 layers)")
+            elif gpu_type == "metal":
+                recommendations.append("[green]LLM:[/green] Qwen3 2B with Metal acceleration")
+            else:
+                recommendations.append("[yellow]LLM:[/yellow] Qwen3 0.6B (limited VRAM)")
+        else:
+            if ram_gb >= 16:
+                recommendations.append("[yellow]LLM:[/yellow] Qwen3 2B (CPU mode, slower)")
+            elif ram_gb >= 8:
+                recommendations.append("[yellow]LLM:[/yellow] Qwen3 0.6B recommended")
+            else:
+                recommendations.append("[red]LLM:[/red] Use Remote Server (insufficient RAM)")
+
+        # TTS recommendation
+        if gpu:
+            recommendations.append("[green]TTS:[/green] VieNeu-TTS with LMDeploy (5x real-time)")
+        else:
+            recommendations.append("[yellow]TTS:[/yellow] VietTTS (MMS) for CPU speed")
+
+        # ASR recommendation
+        recommendations.append("[green]ASR:[/green] Zipformer (streaming, Vietnamese optimized)")
+
+        # Audio/TUI
+        recommendations.append("[green]Audio I/O:[/green] Required for voice interaction")
+        recommendations.append("[green]TUI:[/green] Recommended for live display")
+
+        for rec in recommendations:
+            console.print(f"  {rec}")
+
+        console.print("")
+
+        # Show quick selection option
+        if Confirm.ask("Use recommended settings?", default=True):
+            self.selected_models["asr"] = "zipformer"
+            if gpu and gpu_type == "cuda" and vram >= 4:
+                self.selected_models["llm"] = "qwen3-2b"
+            elif gpu and gpu_type == "metal":
+                self.selected_models["llm"] = "qwen3-2b"
+            elif ram_gb >= 8:
+                self.selected_models["llm"] = "qwen3-0.6b"
+            else:
+                self.selected_models["llm"] = "remote"
+
+            if gpu:
+                self.selected_models["tts"] = "vietneu-tts"
+            else:
+                self.selected_models["tts"] = "vietts"
+
+            console.print("[green]Using recommended settings.[/green]")
+            console.print("")
+            return  # Skip individual selection
+
+        console.print("[dim]Proceeding to manual selection...[/dim]\n")
+
     def select_asr_model(self) -> str:
         """Select ASR model."""
         console.print(Panel.fit(
@@ -389,26 +533,44 @@ class SetupWizard:
         table = Table(title="Available ASR Models")
         table.add_column("#", style="cyan", width=2)
         table.add_column("Model", style="green bold")
-        table.add_column("Description", style="white")
-        table.add_column("Streaming", style="yellow")
-        table.add_column("Packages", style="dim")
+        table.add_column("Best For", style="white")
+        table.add_column("Pros", style="yellow")
+        table.add_column("Requirements", style="dim")
 
         models = list(ASR_MODELS.keys())
         for i, key in enumerate(models, 1):
             model = ASR_MODELS[key]
-            streaming = "[green]Yes[/green]" if model.get("streaming") else "[yellow]No[/yellow]"
-            packages = ", ".join(model["packages"][:2])
-            if len(model["packages"]) > 2:
-                packages += "..."
+            best_for = model.get("best_for", "")
+            pros = ", ".join(model.get("pros", [])[:2])
+            disk = model.get("disk_space", "~1GB")
+            ram = model.get("ram_usage", "~1GB")
+
+            # Recommendation badge
+            rec_badge = " [green][REC][/green]" if model.get("recommended") else ""
+
             table.add_row(
                 str(i),
-                model["name"],
-                model["description"],
-                streaming,
-                packages[:40] + "..." if len(packages) > 40 else packages,
+                model["name"] + rec_badge,
+                best_for,
+                pros[:50] + "..." if len(pros) > 50 else pros,
+                f"Disk: {disk}, RAM: {ram}",
             )
 
         console.print(table)
+        console.print("")
+
+        # Show details for recommended model
+        rec_model = next((k for k, v in ASR_MODELS.items() if v.get("recommended")), None)
+        if rec_model:
+            console.print(Panel.fit(
+                f"[bold]Recommended: {ASR_MODELS[rec_model]['name']}[/bold]\n\n"
+                f"RTF: {ASR_MODELS[rec_model].get('rtf', 'N/A')}\n"
+                f"Pros: {', '.join(ASR_MODELS[rec_model].get('pros', []))}\n"
+                f"Cons: {', '.join(ASR_MODELS[rec_model].get('cons', []))}",
+                border_style="green",
+                title="[green]Recommendation[/green]",
+            ))
+            console.print("")
 
         default = "1"
         choice = Prompt.ask("Select ASR model", default=default)
@@ -433,28 +595,53 @@ class SetupWizard:
         table = Table(title="Available LLM Models")
         table.add_column("#", style="cyan", width=2)
         table.add_column("Model", style="green bold")
-        table.add_column("Description", style="white")
+        table.add_column("Best For", style="white")
         table.add_column("Vietnamese", style="yellow")
-        table.add_column("RAM Required", style="dim")
+        table.add_column("Speed (GPU/CPU)", style="dim")
+        table.add_column("Requirements", style="dim")
 
         models = list(LLM_MODELS.keys())
         for i, key in enumerate(models, 1):
             model = LLM_MODELS[key]
+            best_for = model.get("best_for", "")
             vietnamese = "[green]Yes[/green]" if model.get("vietnamese") else "[red]No[/red]"
-            ram = f"{model.get('ram_required_gb', 0)} GB" if model.get("ram_required_gb") else "N/A"
+            speed_gpu = model.get("tokens_per_sec_gpu", "~")
+            speed_cpu = model.get("tokens_per_sec_cpu", "~")
+            ram = model.get("ram_required_gb", 0)
+            disk = model.get("disk_space_gb", 0)
+
+            # Recommendation badge
+            rec_badge = " [green][REC][/green]" if model.get("recommended") else ""
+
             table.add_row(
                 str(i),
-                model["name"],
-                model["description"],
+                model["name"] + rec_badge,
+                best_for,
                 vietnamese,
-                ram,
+                f"{speed_gpu} / {speed_cpu} tok/s",
+                f"RAM: {ram}GB, Disk: {disk}GB",
             )
 
         console.print(table)
+        console.print("")
+
+        # Show details for recommended model based on system
+        info = self.detect_environment()
+        rec_model = info.get("recommended_llm", "qwen3-2b")
+        if rec_model in LLM_MODELS:
+            m = LLM_MODELS[rec_model]
+            console.print(Panel.fit(
+                f"[bold]Recommended for your system: {m['name']}[/bold]\n\n"
+                f"Pros: {', '.join(m.get('pros', []))}\n"
+                f"Cons: {', '.join(m.get('cons', []))}\n"
+                f"GPU Layers: {m.get('gpu_layers_recommended', 'N/A')}",
+                border_style="green",
+                title="[green]System Recommendation[/green]",
+            ))
+            console.print("")
 
         # Recommend based on RAM
-        recommended = self.detect_environment()["recommended_llm"]
-        default_idx = models.index(recommended) + 1 if recommended in models else 1
+        default_idx = models.index(rec_model) + 1 if rec_model in models else 1
 
         choice = Prompt.ask("Select LLM model", default=str(default_idx))
 
@@ -478,24 +665,54 @@ class SetupWizard:
         table = Table(title="Available TTS Models")
         table.add_column("#", style="cyan", width=2)
         table.add_column("Model", style="green bold")
-        table.add_column("Description", style="white")
-        table.add_column("Real-time", style="yellow")
+        table.add_column("Best For", style="white")
+        table.add_column("Speed (RTF)", style="yellow")
         table.add_column("Voices", style="dim")
+        table.add_column("Requirements", style="dim")
 
         models = list(TTS_MODELS.keys())
         for i, key in enumerate(models, 1):
             model = TTS_MODELS[key]
-            rt = f"{model.get('realtime_factor', 1)}x"
-            voices = str(model.get("voices", "1"))
+            best_for = model.get("best_for", "")
+            rtf_gpu = model.get("rtf_gpu", "N/A")
+            rtf_cpu = model.get("rtf_cpu", "N/A")
+            voices = model.get("voices", "1")
+            voice_names = model.get("voice_names", [])
+            if voice_names:
+                voices = f"{voices}: {', '.join(voice_names[:3])}"
+                if len(voice_names) > 3:
+                    voices += "..."
+            disk = model.get("disk_space", "~1GB")
+            ram = model.get("ram_usage", "~1GB")
+
+            # Recommendation badge
+            rec_badge = " [green][REC][/green]" if model.get("recommended") else ""
+
             table.add_row(
                 str(i),
-                model["name"],
-                model["description"],
-                f"[green]{rt}[/green]",
+                model["name"] + rec_badge,
+                best_for,
+                f"GPU: {rtf_gpu}, CPU: {rtf_cpu}",
                 voices,
+                f"Disk: {disk}, RAM: {ram}",
             )
 
         console.print(table)
+        console.print("")
+
+        # Show details for recommended model
+        rec_model = next((k for k, v in TTS_MODELS.items() if v.get("recommended")), None)
+        if rec_model:
+            m = TTS_MODELS[rec_model]
+            console.print(Panel.fit(
+                f"[bold]Recommended: {m['name']}[/bold]\n\n"
+                f"Voice Presets: {', '.join(m.get('voice_names', []))}\n"
+                f"Pros: {', '.join(m.get('pros', []))}\n"
+                f"Cons: {', '.join(m.get('cons', []))}",
+                border_style="green",
+                title="[green]Recommendation[/green]",
+            ))
+            console.print("")
 
         default = "1"
         choice = Prompt.ask("Select TTS model", default=default)
@@ -759,14 +976,20 @@ class SetupWizard:
         info = self.detect_environment()
         self.print_system_info(info)
 
-        # Step 1: Select ASR model
-        self.select_asr_model()
+        # Show hardware-based recommendations
+        self._show_hardware_recommendations(info)
 
-        # Step 2: Select LLM model
-        self.select_llm_model()
+        # Step 1: Select ASR model (skip if already selected via recommendations)
+        if "asr" not in self.selected_models:
+            self.select_asr_model()
 
-        # Step 3: Select TTS model
-        self.select_tts_model()
+        # Step 2: Select LLM model (skip if already selected via recommendations)
+        if "llm" not in self.selected_models:
+            self.select_llm_model()
+
+        # Step 3: Select TTS model (skip if already selected via recommendations)
+        if "tts" not in self.selected_models:
+            self.select_tts_model()
 
         # Step 4: Select components
         components = self.select_components()
